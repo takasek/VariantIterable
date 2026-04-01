@@ -893,6 +893,53 @@ final class VariantIterableMacroTests: XCTestCase {
         #endif
     }
 
+    func testMultipleVariantWithoutNameProducesWarning() throws {
+        #if canImport(VariantIterableMacros)
+        assertMacroExpansion(
+            """
+            @VariantIterable
+            struct X {
+                @Variant(1)
+                @Variant(2)
+                static func make(value: Int) -> Self { .init() }
+            }
+            """,
+            expandedSource: """
+            struct X {
+                static func make(value: Int) -> Self { .init() }
+
+                static var allVariants: [(name: String, value: Self)] {
+                    [
+                        (name: "make", value: .make(value: 1)),
+                        (name: "make", value: .make(value: 2)),
+                    ]
+                }
+            }
+
+            extension X: VariantIterable {
+            }
+            """,
+            diagnostics: [
+                DiagnosticSpec(
+                    message: "@Variant: 'name:' is required when multiple @Variant attributes are applied to the same declaration.",
+                    line: 3,
+                    column: 5,
+                    severity: .warning
+                ),
+                DiagnosticSpec(
+                    message: "@Variant: 'name:' is required when multiple @Variant attributes are applied to the same declaration.",
+                    line: 4,
+                    column: 5,
+                    severity: .warning
+                ),
+            ],
+            macros: testMacros
+        )
+        #else
+        throw XCTSkip("macros are only supported when running tests for the host platform")
+        #endif
+    }
+
     func testAVArgCountTooFewProducesDiagnostic() throws {
         #if canImport(VariantIterableMacros)
         assertMacroExpansion(

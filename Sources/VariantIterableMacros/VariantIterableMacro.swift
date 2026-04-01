@@ -113,6 +113,12 @@ public struct VariantIterableMacro: MemberMacro, ExtensionMacro {
                 let params = element.parameterClause?.parameters ?? []
 
                 for annotation in annotations {
+                    if annotations.count > 1 && annotation.name == nil {
+                        context.diagnose(Diagnostic(
+                            node: Syntax(annotation.node),
+                            message: VariantDiagnostic.missingNameWithMultipleVariants
+                        ))
+                    }
                     let name = annotation.name ?? caseName
 
                     if let memberRef = annotation.memberRef {
@@ -165,6 +171,12 @@ public struct VariantIterableMacro: MemberMacro, ExtensionMacro {
                         ))
                         continue
                     }
+                    if annotations.count > 1 && annotation.name == nil {
+                        context.diagnose(Diagnostic(
+                            node: Syntax(annotation.node),
+                            message: VariantDiagnostic.missingNameWithMultipleVariants
+                        ))
+                    }
                     let name = annotation.name ?? memberName
                     entries.append((name: name, callExpr: ".\(memberName)"))
                 }
@@ -178,6 +190,12 @@ public struct VariantIterableMacro: MemberMacro, ExtensionMacro {
                 let params = funcDecl.signature.parameterClause.parameters
 
                 for annotation in annotations {
+                    if annotations.count > 1 && annotation.name == nil {
+                        context.diagnose(Diagnostic(
+                            node: Syntax(annotation.node),
+                            message: VariantDiagnostic.missingNameWithMultipleVariants
+                        ))
+                    }
                     let name = annotation.name ?? funcName
 
                     guard annotation.extraArgs.count == params.count else {
@@ -244,8 +262,9 @@ public struct VariantIterableMacro: MemberMacro, ExtensionMacro {
 // MARK: - VariantAnnotation
 
 private struct VariantAnnotation {
+    let node: AttributeSyntax
     let name: String?
-    /// Non-nil when `@Variant(member: "memberName")` is used.
+    /// Non-nil when `@Variant(at:)` is used.
     let memberRef: String?
     /// Positional argument expressions (source text) for `@Variant(arg1, arg2, ...)`.
     let extraArgs: [String]
@@ -262,7 +281,7 @@ private extension AttributeListSyntax {
                   case .argumentList(let argList) = args
             else {
                 // @Variant with no parentheses
-                return VariantAnnotation(name: nil, memberRef: nil, extraArgs: [])
+                return VariantAnnotation(node: attr, name: nil, memberRef: nil, extraArgs: [])
             }
 
             var name: String? = nil
@@ -282,9 +301,9 @@ private extension AttributeListSyntax {
             }
 
             if memberRef != nil {
-                return VariantAnnotation(name: name, memberRef: memberRef, extraArgs: [])
+                return VariantAnnotation(node: attr, name: name, memberRef: memberRef, extraArgs: [])
             }
-            return VariantAnnotation(name: name, memberRef: nil, extraArgs: extraArgs)
+            return VariantAnnotation(node: attr, name: name, memberRef: nil, extraArgs: extraArgs)
         }
     }
 }
@@ -308,6 +327,7 @@ private enum VariantDiagnostic: DiagnosticMessage {
     case avCaseRequiresAnnotation(name: String)
     case memberRefRequiresAllCases(name: String)
     case multiElementCaseWithAnnotation
+    case missingNameWithMultipleVariants
     case unexpectedArgsOnStoredProperty(name: String)
 
     var message: String {
@@ -320,6 +340,8 @@ private enum VariantDiagnostic: DiagnosticMessage {
             return "@Variant(at:) is only supported with @VariantIterableAllCases. To include '\(name)' with @VariantIterable, annotate the static let with @Variant directly."
         case .multiElementCaseWithAnnotation:
             return "@Variant cannot be applied to a multi-element case declaration (e.g. `case a, b`). Declare each case on its own line."
+        case .missingNameWithMultipleVariants:
+            return "@Variant: 'name:' is required when multiple @Variant attributes are applied to the same declaration."
         case let .unexpectedArgsOnStoredProperty(name):
             return "@Variant: '\(name)' expects no arguments."
         }
@@ -337,12 +359,19 @@ private enum VariantDiagnostic: DiagnosticMessage {
             return MessageID(domain: Self.domain, id: "memberRefRequiresAllCases")
         case .multiElementCaseWithAnnotation:
             return MessageID(domain: Self.domain, id: "multiElementCaseWithAnnotation")
+        case .missingNameWithMultipleVariants:
+            return MessageID(domain: Self.domain, id: "missingNameWithMultipleVariants")
         case .unexpectedArgsOnStoredProperty:
             return MessageID(domain: Self.domain, id: "unexpectedArgsOnStoredProperty")
         }
     }
 
-    var severity: DiagnosticSeverity { .error }
+    var severity: DiagnosticSeverity {
+        switch self {
+        case .missingNameWithMultipleVariants: return .warning
+        default:                               return .error
+        }
+    }
 }
 
 // MARK: - Plugin

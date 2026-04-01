@@ -290,7 +290,7 @@ internal enum Banner { ... }
 
 ## Diagnostics
 
-The macro emits compile-time errors for misuse. Recoverable entries are skipped; the rest of `allVariants` is still generated.
+The macro emits compile-time errors and warnings for misuse. Recoverable entries are skipped; the rest of `allVariants` is still generated.
 
 **Positional arguments on a stored property**
 
@@ -319,6 +319,16 @@ case connection(host: String, port: Int)   //    but 0 were provided.
 @Variant(name: "bad")   // 🛑 @Variant cannot be applied to a multi-element case
 case a, b               //    declaration (e.g. `case a, b`). Declare each case
                         //    on its own line.
+```
+
+**Missing `name:` with multiple `@Variant` attributes**
+
+When multiple `@Variant` attributes are applied to the same declaration, omitting `name:` produces duplicate entries in `allVariants`. The macro emits a warning on each offending attribute:
+
+```swift
+@Variant(5)    // ⚠️ @Variant: 'name:' is required when multiple @Variant
+@Variant(120)  // ⚠️     attributes are applied to the same declaration.
+static func custom(timeout: TimeInterval) -> Self { ... }
 ```
 
 **`@Variant(at:)` outside `@VariantIterableAllCases`**
