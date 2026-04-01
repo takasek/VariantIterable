@@ -116,6 +116,13 @@ public struct VariantIterableMacro: MemberMacro, ExtensionMacro {
                     let name = annotation.name ?? caseName
 
                     if let memberRef = annotation.memberRef {
+                        guard collectAllCases else {
+                            context.diagnose(Diagnostic(
+                                node: Syntax(element),
+                                message: VariantDiagnostic.memberRefRequiresAllCases(name: caseName)
+                            ))
+                            continue
+                        }
                         entries.append((name: name, callExpr: ".\(memberRef)"))
                         continue
                     }
@@ -296,6 +303,7 @@ private func extractStringLiteral(from expr: ExprSyntax?) -> String? {
 private enum VariantDiagnostic: DiagnosticMessage {
     case argCountMismatch(name: String, expected: Int, actual: Int)
     case avCaseRequiresAnnotation(name: String)
+    case memberRefRequiresAllCases(name: String)
     case multiElementCaseWithAnnotation
     case unexpectedArgsOnStoredProperty(name: String)
 
@@ -305,6 +313,8 @@ private enum VariantDiagnostic: DiagnosticMessage {
             return "@Variant: '\(name)' expects \(expected) argument(s) but \(actual) were provided."
         case let .avCaseRequiresAnnotation(name):
             return "@VariantIterableAllCases: '\(name)' has associated values and requires an explicit @Variant annotation."
+        case let .memberRefRequiresAllCases(name):
+            return "@Variant(member:) is only supported with @VariantIterableAllCases. To include '\(name)' with @VariantIterable, annotate the static let with @Variant directly."
         case .multiElementCaseWithAnnotation:
             return "@Variant cannot be applied to a multi-element case declaration (e.g. `case a, b`). Declare each case on its own line."
         case let .unexpectedArgsOnStoredProperty(name):
@@ -320,6 +330,8 @@ private enum VariantDiagnostic: DiagnosticMessage {
             return MessageID(domain: Self.domain, id: "argCountMismatch")
         case .avCaseRequiresAnnotation:
             return MessageID(domain: Self.domain, id: "avCaseRequiresAnnotation")
+        case .memberRefRequiresAllCases:
+            return MessageID(domain: Self.domain, id: "memberRefRequiresAllCases")
         case .multiElementCaseWithAnnotation:
             return MessageID(domain: Self.domain, id: "multiElementCaseWithAnnotation")
         case .unexpectedArgsOnStoredProperty:

@@ -456,7 +456,7 @@ final class VariantIterableMacroTests: XCTestCase {
 
     // MARK: - enum: member: overload
 
-    func testMemberRefOnAVCase() throws {
+    func testMemberRefOnVariantIterableProducesDiagnostic() throws {
         #if canImport(VariantIterableMacros)
         assertMacroExpansion(
             """
@@ -476,7 +476,7 @@ final class VariantIterableMacroTests: XCTestCase {
 
                 static var allVariants: [(name: String, value: Self)] {
                     [
-                        (name: "Logout", value: .logoutAction),
+
                     ]
                 }
             }
@@ -484,6 +484,14 @@ final class VariantIterableMacroTests: XCTestCase {
             extension Alert: VariantIterable {
             }
             """,
+            diagnostics: [
+                DiagnosticSpec(
+                    message: "@Variant(member:) is only supported with @VariantIterableAllCases. To include 'withAction' with @VariantIterable, annotate the static let with @Variant directly.",
+                    line: 4,
+                    column: 10,
+                    severity: .error
+                )
+            ],
             macros: testMacros
         )
         #else
