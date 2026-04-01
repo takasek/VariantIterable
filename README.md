@@ -204,6 +204,55 @@ enum Config {
 > [!NOTE]
 > `VariantIterable` inherits from `Sendable`. Types whose associated values are non-`Sendable` (e.g. closures) cannot conform and are out of scope for this library.
 
+### `@VariantIterableAllCases` — skip annotations for simple enums
+
+When an enum has many cases without associated values, annotating every one with `@Variant` is repetitive. Use `@VariantIterableAllCases` instead: all cases are collected automatically, and `CaseIterable` conformance is added alongside `VariantIterable`.
+
+```swift
+@VariantIterableAllCases
+enum Alert: Sendable {
+    case success
+    case warning
+
+    @Variant("Network timeout.", name: "Timeout")
+    @Variant("Server returned an error.", name: "Server error")
+    case error(String)
+}
+
+Alert.allCases
+// [.success, .warning, .error("Network timeout."), .error("Server returned an error.")]
+
+Alert.allVariants
+// [("success",      .success),
+//  ("warning",      .warning),
+//  ("Timeout",      .error("Network timeout.")),
+//  ("Server error", .error("Server returned an error."))]
+```
+
+`allCases` is generated as `allVariants.map(\.value)`, so both properties stay in sync automatically.
+
+Cases **with** associated values still require an explicit `@Variant` — the compiler will emit an error if they are not annotated:
+
+```swift
+@VariantIterableAllCases
+enum Alert: Sendable {
+    case success                // ✅ auto-collected
+    case error(String)          // 🛑 @VariantIterableAllCases: 'error' has associated
+                                //    values and requires an explicit @Variant annotation.
+}
+```
+
+Use `@Variant(name:)` on individual cases to override the default name:
+
+```swift
+@VariantIterableAllCases
+enum Status: Sendable {
+    case active
+    @Variant(name: "Not active")
+    case inactive   // → name: "Not active"
+}
+```
+
 ---
 
 ## Diagnostics

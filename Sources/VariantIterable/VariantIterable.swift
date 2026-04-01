@@ -19,6 +19,22 @@ public macro VariantIterable() = #externalMacro(
     type: "VariantIterableMacro"
 )
 
+/// Variant of `@VariantIterable` for enums whose cases have no associated values.
+///
+/// All cases are collected automatically without requiring `@Variant` on each one.
+/// Use `@Variant(name:)` on individual cases to override the default name.
+///
+/// Cases **with** associated values must be annotated with `@Variant` explicitly;
+/// the compiler will emit an error if they are not.
+///
+/// In addition to `VariantIterable`, this macro also adds `CaseIterable` conformance.
+@attached(member, names: named(allVariants), named(allCases))
+@attached(extension, conformances: VariantIterable, CaseIterable)
+public macro VariantIterableAllCases() = #externalMacro(
+    module: "VariantIterableMacros",
+    type: "VariantIterableMacro"
+)
+
 // MARK: - @Variant
 
 /// Registers a static member or enum case as an entry in `allVariants`.

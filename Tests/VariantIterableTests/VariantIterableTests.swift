@@ -8,6 +8,7 @@ import VariantIterableMacros
 
 private let testMacros: [String: Macro.Type] = [
     "VariantIterable": VariantIterableMacro.self,
+    "VariantIterableAllCases": VariantIterableMacro.self,
     "Variant": VariantPeerMacro.self,
 ]
 #endif
@@ -483,6 +484,205 @@ final class VariantIterableMacroTests: XCTestCase {
             extension Alert: VariantIterable {
             }
             """,
+            macros: testMacros
+        )
+        #else
+        throw XCTSkip("macros are only supported when running tests for the host platform")
+        #endif
+    }
+
+    // MARK: - enum: @VariantIterableAllCases
+
+    func testAllCasesAutoCollectsAVLessCases() throws {
+        #if canImport(VariantIterableMacros)
+        assertMacroExpansion(
+            """
+            @VariantIterableAllCases
+            enum Status {
+                case active
+                case inactive
+                case pending
+            }
+            """,
+            expandedSource: """
+            enum Status {
+                case active
+                case inactive
+                case pending
+
+                static var allVariants: [(name: String, value: Self)] {
+                    [
+                        (name: "active", value: .active),
+                        (name: "inactive", value: .inactive),
+                        (name: "pending", value: .pending),
+                    ]
+                }
+
+                static var allCases: [Self] {
+                    allVariants.map(\\.value)
+                }
+            }
+
+            extension Status: VariantIterable, CaseIterable {
+            }
+            """,
+            macros: testMacros
+        )
+        #else
+        throw XCTSkip("macros are only supported when running tests for the host platform")
+        #endif
+    }
+
+    func testAllCasesExplicitAnnotationOverridesName() throws {
+        #if canImport(VariantIterableMacros)
+        assertMacroExpansion(
+            """
+            @VariantIterableAllCases
+            enum Status {
+                case active
+                @Variant(name: "Not active")
+                case inactive
+            }
+            """,
+            expandedSource: """
+            enum Status {
+                case active
+                case inactive
+
+                static var allVariants: [(name: String, value: Self)] {
+                    [
+                        (name: "active", value: .active),
+                        (name: "Not active", value: .inactive),
+                    ]
+                }
+
+                static var allCases: [Self] {
+                    allVariants.map(\\.value)
+                }
+            }
+
+            extension Status: VariantIterable, CaseIterable {
+            }
+            """,
+            macros: testMacros
+        )
+        #else
+        throw XCTSkip("macros are only supported when running tests for the host platform")
+        #endif
+    }
+
+    func testAllCasesMultiElementCaseAutoCollected() throws {
+        #if canImport(VariantIterableMacros)
+        assertMacroExpansion(
+            """
+            @VariantIterableAllCases
+            enum Status {
+                case active, inactive
+            }
+            """,
+            expandedSource: """
+            enum Status {
+                case active, inactive
+
+                static var allVariants: [(name: String, value: Self)] {
+                    [
+                        (name: "active", value: .active),
+                        (name: "inactive", value: .inactive),
+                    ]
+                }
+
+                static var allCases: [Self] {
+                    allVariants.map(\\.value)
+                }
+            }
+
+            extension Status: VariantIterable, CaseIterable {
+            }
+            """,
+            macros: testMacros
+        )
+        #else
+        throw XCTSkip("macros are only supported when running tests for the host platform")
+        #endif
+    }
+
+    func testAllCasesMemberRefCombined() throws {
+        #if canImport(VariantIterableMacros)
+        assertMacroExpansion(
+            """
+            @VariantIterableAllCases
+            enum Config {
+                case simple
+                @Variant(member: "largePayload", name: "Large payload")
+                case withData(Data)
+                static let largePayload = Config.withData(Data())
+            }
+            """,
+            expandedSource: """
+            enum Config {
+                case simple
+                case withData(Data)
+                static let largePayload = Config.withData(Data())
+
+                static var allVariants: [(name: String, value: Self)] {
+                    [
+                        (name: "simple", value: .simple),
+                        (name: "Large payload", value: .largePayload),
+                    ]
+                }
+
+                static var allCases: [Self] {
+                    allVariants.map(\\.value)
+                }
+            }
+
+            extension Config: VariantIterable, CaseIterable {
+            }
+            """,
+            macros: testMacros
+        )
+        #else
+        throw XCTSkip("macros are only supported when running tests for the host platform")
+        #endif
+    }
+
+    func testAllCasesAVCaseWithoutAnnotationProducesDiagnostic() throws {
+        #if canImport(VariantIterableMacros)
+        assertMacroExpansion(
+            """
+            @VariantIterableAllCases
+            enum Alert {
+                case success
+                case error(String)
+            }
+            """,
+            expandedSource: """
+            enum Alert {
+                case success
+                case error(String)
+
+                static var allVariants: [(name: String, value: Self)] {
+                    [
+                        (name: "success", value: .success),
+                    ]
+                }
+
+                static var allCases: [Self] {
+                    allVariants.map(\\.value)
+                }
+            }
+
+            extension Alert: VariantIterable, CaseIterable {
+            }
+            """,
+            diagnostics: [
+                DiagnosticSpec(
+                    message: "@VariantIterableAllCases: 'error' has associated values and requires an explicit @Variant annotation.",
+                    line: 4,
+                    column: 10,
+                    severity: .error
+                )
+            ],
             macros: testMacros
         )
         #else

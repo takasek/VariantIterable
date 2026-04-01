@@ -26,21 +26,27 @@ public struct VariantIterableMacro: MemberMacro, ExtensionMacro {
         conformingTo protocols: [TypeSyntax],
         in context: some MacroExpansionContext
     ) throws -> [DeclSyntax] {
-        let entries = collectEntries(from: declaration, in: context)
+        let entries = collectEntries(from: declaration, collectAllCases: isAllCasesMode(node), in: context)
         let access = accessModifier(of: declaration)
 
         let body = entries
             .map { #"        (name: "\#($0.name)", value: \#($0.callExpr)),"# }
             .joined(separator: "\n")
 
-        let generated: DeclSyntax = """
+        let allVariants: DeclSyntax = """
         \(raw: access)static var allVariants: [(name: String, value: Self)] {
             [
         \(raw: body)
             ]
         }
         """
-        return [generated]
+
+        guard isAllCasesMode(node) else { return [allVariants] }
+
+        let allCases: DeclSyntax = """
+        \(raw: access)static var allCases: [Self] { allVariants.map(\\.value) }
+        """
+        return [allVariants, allCases]
     }
 
     // MARK: ExtensionMacro – adds VariantIterable conformance
@@ -52,7 +58,10 @@ public struct VariantIterableMacro: MemberMacro, ExtensionMacro {
         conformingTo protocols: [TypeSyntax],
         in context: some MacroExpansionContext
     ) throws -> [ExtensionDeclSyntax] {
-        let ext: DeclSyntax = "extension \(type.trimmed): VariantIterable {}"
+        let conformances = isAllCasesMode(node)
+            ? "VariantIterable, CaseIterable"
+            : "VariantIterable"
+        let ext: DeclSyntax = "extension \(type.trimmed): \(raw: conformances) {}"
         return [ext.cast(ExtensionDeclSyntax.self)]
     }
 
@@ -60,6 +69,7 @@ public struct VariantIterableMacro: MemberMacro, ExtensionMacro {
 
     private static func collectEntries(
         from declaration: some DeclGroupSyntax,
+        collectAllCases: Bool,
         in context: some MacroExpansionContext
     ) -> [(name: String, callExpr: String)] {
         var entries: [(name: String, callExpr: String)] = []
@@ -70,6 +80,23 @@ public struct VariantIterableMacro: MemberMacro, ExtensionMacro {
             // 1. enum case
             if let caseDecl = decl.as(EnumCaseDeclSyntax.self) {
                 let annotations = caseDecl.attributes.variantAnnotations()
+
+                // collectAllCases mode: auto-collect unannotated cases
+                if collectAllCases && annotations.isEmpty {
+                    for element in caseDecl.elements {
+                        let params = element.parameterClause?.parameters ?? []
+                        if params.isEmpty {
+                            entries.append((name: element.name.text, callExpr: ".\(element.name.text)"))
+                        } else {
+                            context.diagnose(Diagnostic(
+                                node: Syntax(element),
+                                message: VariantDiagnostic.avCaseRequiresAnnotation(name: element.name.text)
+                            ))
+                        }
+                    }
+                    continue
+                }
+
                 guard !annotations.isEmpty else { continue }
 
                 if caseDecl.elements.count > 1 {
@@ -173,6 +200,10 @@ public struct VariantIterableMacro: MemberMacro, ExtensionMacro {
 
     // MARK: - Helpers
 
+    private static func isAllCasesMode(_ node: AttributeSyntax) -> Bool {
+        node.attributeName.as(IdentifierTypeSyntax.self)?.name.text == "VariantIterableAllCases"
+    }
+
     private static func isStatic(_ modifiers: DeclModifierListSyntax) -> Bool {
         modifiers.contains { $0.name.tokenKind == .keyword(.static) }
     }
@@ -259,6 +290,7 @@ private func extractStringLiteral(from expr: ExprSyntax?) -> String? {
 
 private enum VariantDiagnostic: DiagnosticMessage {
     case argCountMismatch(name: String, expected: Int, actual: Int)
+    case avCaseRequiresAnnotation(name: String)
     case multiElementCaseWithAnnotation
     case unexpectedArgsOnStoredProperty(name: String)
 
@@ -266,6 +298,8 @@ private enum VariantDiagnostic: DiagnosticMessage {
         switch self {
         case let .argCountMismatch(name, expected, actual):
             return "@Variant: '\(name)' expects \(expected) argument(s) but \(actual) were provided."
+        case let .avCaseRequiresAnnotation(name):
+            return "@VariantIterableAllCases: '\(name)' has associated values and requires an explicit @Variant annotation."
         case .multiElementCaseWithAnnotation:
             return "@Variant cannot be applied to a multi-element case declaration (e.g. `case a, b`). Declare each case on its own line."
         case let .unexpectedArgsOnStoredProperty(name):
@@ -277,6 +311,8 @@ private enum VariantDiagnostic: DiagnosticMessage {
         switch self {
         case .argCountMismatch:
             return MessageID(domain: "VariantIterable", id: "argCountMismatch")
+        case .avCaseRequiresAnnotation:
+            return MessageID(domain: "VariantIterable", id: "avCaseRequiresAnnotation")
         case .multiElementCaseWithAnnotation:
             return MessageID(domain: "VariantIterable", id: "multiElementCaseWithAnnotation")
         case .unexpectedArgsOnStoredProperty:
