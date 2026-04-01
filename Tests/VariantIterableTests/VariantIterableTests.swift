@@ -48,6 +48,37 @@ final class VariantIterableMacroTests: XCTestCase {
         #endif
     }
 
+    func testAccessLevelPropagation() throws {
+        #if canImport(VariantIterableMacros)
+        assertMacroExpansion(
+            """
+            @VariantIterable
+            fileprivate struct X {
+                @Variant
+                static let foo: Self = .init()
+            }
+            """,
+            expandedSource: """
+            fileprivate struct X {
+                static let foo: Self = .init()
+
+                fileprivate static var allVariants: [(name: String, value: Self)] {
+                    [
+                        (name: "foo", value: .foo),
+                    ]
+                }
+            }
+
+            extension X: VariantIterable {
+            }
+            """,
+            macros: testMacros
+        )
+        #else
+        throw XCTSkip("macros are only supported when running tests for the host platform")
+        #endif
+    }
+
     func testStaticLetWithoutAnnotationIsSkipped() throws {
         #if canImport(VariantIterableMacros)
         assertMacroExpansion(
@@ -98,6 +129,37 @@ final class VariantIterableMacroTests: XCTestCase {
                 static var allVariants: [(name: String, value: Self)] {
                     [
                         (name: "foo", value: .foo),
+                    ]
+                }
+            }
+
+            extension X: VariantIterable {
+            }
+            """,
+            macros: testMacros
+        )
+        #else
+        throw XCTSkip("macros are only supported when running tests for the host platform")
+        #endif
+    }
+
+    func testStaticVarIsCollected() throws {
+        #if canImport(VariantIterableMacros)
+        assertMacroExpansion(
+            """
+            @VariantIterable
+            struct X {
+                @Variant(name: "Foo")
+                static var foo: Self { .init() }
+            }
+            """,
+            expandedSource: """
+            struct X {
+                static var foo: Self { .init() }
+
+                static var allVariants: [(name: String, value: Self)] {
+                    [
+                        (name: "Foo", value: .foo),
                     ]
                 }
             }
@@ -240,6 +302,37 @@ final class VariantIterableMacroTests: XCTestCase {
         #endif
     }
 
+    func testMultiArgStaticFuncIsCollected() throws {
+        #if canImport(VariantIterableMacros)
+        assertMacroExpansion(
+            """
+            @VariantIterable
+            struct X {
+                @Variant("foo", 1, name: "Foo")
+                static func make(x: String, y: Int) -> Self { .init() }
+            }
+            """,
+            expandedSource: """
+            struct X {
+                static func make(x: String, y: Int) -> Self { .init() }
+
+                static var allVariants: [(name: String, value: Self)] {
+                    [
+                        (name: "Foo", value: .make(x: "foo", y: 1)),
+                    ]
+                }
+            }
+
+            extension X: VariantIterable {
+            }
+            """,
+            macros: testMacros
+        )
+        #else
+        throw XCTSkip("macros are only supported when running tests for the host platform")
+        #endif
+    }
+
     // MARK: - struct: diagnostics
 
     func testExtraArgsOnStaticLetProducesDiagnostic() throws {
@@ -341,6 +434,37 @@ final class VariantIterableMacroTests: XCTestCase {
                 static var allVariants: [(name: String, value: Self)] {
                     [
                         (name: "Foo", value: .foo),
+                    ]
+                }
+            }
+
+            extension X: VariantIterable {
+            }
+            """,
+            macros: testMacros
+        )
+        #else
+        throw XCTSkip("macros are only supported when running tests for the host platform")
+        #endif
+    }
+
+    func testAVLessCaseNameOmitted() throws {
+        #if canImport(VariantIterableMacros)
+        assertMacroExpansion(
+            """
+            @VariantIterable
+            enum X {
+                @Variant
+                case foo
+            }
+            """,
+            expandedSource: """
+            enum X {
+                case foo
+
+                static var allVariants: [(name: String, value: Self)] {
+                    [
+                        (name: "foo", value: .foo),
                     ]
                 }
             }
@@ -759,6 +883,45 @@ final class VariantIterableMacroTests: XCTestCase {
                     message: "@Variant cannot be applied to a multi-element case declaration (e.g. `case a, b`). Declare each case on its own line.",
                     line: 3,
                     column: 5,
+                    severity: .error
+                )
+            ],
+            macros: testMacros
+        )
+        #else
+        throw XCTSkip("macros are only supported when running tests for the host platform")
+        #endif
+    }
+
+    func testAVArgCountTooFewProducesDiagnostic() throws {
+        #if canImport(VariantIterableMacros)
+        assertMacroExpansion(
+            """
+            @VariantIterable
+            enum X {
+                @Variant(name: "bad")
+                case baz(String)
+            }
+            """,
+            expandedSource: """
+            enum X {
+                case baz(String)
+
+                static var allVariants: [(name: String, value: Self)] {
+                    [
+
+                    ]
+                }
+            }
+
+            extension X: VariantIterable {
+            }
+            """,
+            diagnostics: [
+                DiagnosticSpec(
+                    message: "@Variant: 'baz' expects 1 argument(s) but 0 were provided.",
+                    line: 4,
+                    column: 10,
                     severity: .error
                 )
             ],
