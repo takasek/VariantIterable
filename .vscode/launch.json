@@ -1,0 +1,24 @@
+{
+    "configurations": [
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:VariantIterable}",
+            "name": "Debug VariantIterableClient",
+            "target": "VariantIterableClient",
+            "configuration": "debug",
+            "preLaunchTask": "swift: Build Debug VariantIterableClient"
+        },
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:VariantIterable}",
+            "name": "Release VariantIterableClient",
+            "target": "VariantIterableClient",
+            "configuration": "release",
+            "preLaunchTask": "swift: Build Release VariantIterableClient"
+        }
+    ]
+}
