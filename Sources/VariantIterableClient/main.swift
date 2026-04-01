@@ -11,7 +11,7 @@ public struct NetworkConfig: CustomStringConvertible, Sendable {
 
     public var description: String { "NetworkConfig(baseURL: \"\(baseURL)\", timeout: \(timeout)s)" }
 
-    @Variant
+    @Variant(name: "Dev 🛠")
     public static let development = NetworkConfig(baseURL: "http://localhost:8080", timeout: 60)
 
     @Variant
@@ -43,12 +43,18 @@ public enum Banner: Sendable {
     @Variant(name: "Warning")
     case warning
 
+    // No @Variant → not included in allVariants
+    case dismissed
+
     @Variant("Oops, something went wrong.", name: "Short error")
     @Variant("A network error occurred. Please check your connection and try again.", name: "Long error")
     case error(String)
 
     @Variant(503, name: "Server Error")
     case httpError(code: Int)
+
+    @Variant("api.example.com", 443, name: "HTTPS")
+    case connection(host: String, port: Int)
 
     @Variant(Date.distantFuture, name: "Far future")
     case scheduledMaintenance(at: Date)
@@ -64,6 +70,7 @@ for (name, _) in Banner.allVariants {
 /// Payloads attached to a request.
 @VariantIterableAllCases
 public enum Payload: Sendable {
+    @Variant(name: "Empty body")
     case empty
 
     @Variant(at: Self.largeBody, name: "Large body")
