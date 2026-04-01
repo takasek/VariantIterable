@@ -138,12 +138,16 @@ struct NetworkConfig {
 // (name: "Lenient",    value: .custom(timeout: 120)),
 ```
 
-Labeled parameters are forwarded automatically:
+Pass one positional argument per parameter — labels are inferred from the function signature, and underscore labels (`_`) are dropped:
 
 ```swift
 @Variant(Date.distantFuture, name: "Far future")
 static func scheduled(at date: Date) -> Self { ... }
 // → .scheduled(at: Date.distantFuture)
+
+@Variant("api.example.com", 443, name: "HTTPS")
+static func connect(host: String, port: Int) -> Self { ... }
+// → .connect(host: "api.example.com", port: 443)
 
 @Variant(42, name: "ID=42")
 static func byID(_ id: Int) -> Self { ... }
