@@ -45,8 +45,8 @@ public macro VariantIterableAllCases() = #externalMacro(
 /// - `static func` (with parameters): pass positional arguments before `name:`.
 /// - `enum case` (no associated values): included as-is. No arguments needed.
 /// - `enum case` (with associated values): pass positional arguments matching the AV list.
-/// - `enum case` (with closure AV or other non-literal AV): add `@Variant` to a
-///   `static let` that constructs the case, and annotate that static member instead.
+/// - `enum case` (with complex AV): use `@Variant(at:)` with `@VariantIterableAllCases`
+///   to reference a `static let` that holds the complete case value.
 ///
 /// `name:` is optional; when omitted, the member or case name is used as-is.
 ///
@@ -60,16 +60,17 @@ public macro Variant<each A>(_ args: repeat each A, name: String? = nil) = #exte
 
 /// Registers an enum case by referencing an existing static member that provides
 /// the representative instance. Use this when the associated value cannot be
-/// expressed as a macro argument (e.g. closures).
+/// expressed as a macro argument (e.g. large literals or computed initialisers).
+/// Only supported with `@VariantIterableAllCases`.
 ///
 /// ```swift
-/// @Variant(member: "logoutAction", name: "ログアウト")
-/// case withAction(String, () -> Void)
+/// @Variant(at: Self.largePayload, name: "Large payload")
+/// case withData(Data)
 ///
-/// static let logoutAction = Self.withAction("ログアウト") { /* ... */ }
+/// static let largePayload = Self.withData(Data(repeating: 0xFF, count: 1024))
 /// ```
 @attached(peer)
-public macro Variant(member: String, name: String? = nil) = #externalMacro(
+public macro Variant<T>(at instance: T, name: String? = nil) = #externalMacro(
     module: "VariantIterableMacros",
     type: "VariantPeerMacro"
 )

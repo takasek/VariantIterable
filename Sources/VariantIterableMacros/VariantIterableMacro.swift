@@ -271,9 +271,12 @@ private extension AttributeListSyntax {
 
             for arg in argList {
                 switch arg.label?.text {
-                case "name":   name = extractStringLiteral(from: arg.expression)
-                case "member": memberRef = extractStringLiteral(from: arg.expression)
-                case nil:      extraArgs.append(arg.expression.trimmedDescription)
+                case "name": name = extractStringLiteral(from: arg.expression)
+                case "at":
+                    if let memberAccess = arg.expression.as(MemberAccessExprSyntax.self) {
+                        memberRef = memberAccess.declName.baseName.text
+                    }
+                case nil:    extraArgs.append(arg.expression.trimmedDescription)
                 default:       break
                 }
             }
@@ -314,7 +317,7 @@ private enum VariantDiagnostic: DiagnosticMessage {
         case let .avCaseRequiresAnnotation(name):
             return "@VariantIterableAllCases: '\(name)' has associated values and requires an explicit @Variant annotation."
         case let .memberRefRequiresAllCases(name):
-            return "@Variant(member:) is only supported with @VariantIterableAllCases. To include '\(name)' with @VariantIterable, annotate the static let with @Variant directly."
+            return "@Variant(at:) is only supported with @VariantIterableAllCases. To include '\(name)' with @VariantIterable, annotate the static let with @Variant directly."
         case .multiElementCaseWithAnnotation:
             return "@Variant cannot be applied to a multi-element case declaration (e.g. `case a, b`). Declare each case on its own line."
         case let .unexpectedArgsOnStoredProperty(name):

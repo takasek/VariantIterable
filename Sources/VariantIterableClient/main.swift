@@ -11,13 +11,13 @@ public struct NetworkConfig: CustomStringConvertible, Sendable {
 
     public var description: String { "NetworkConfig(baseURL: \"\(baseURL)\", timeout: \(timeout)s)" }
 
-    @Variant(name: "Development")
+    @Variant
     public static let development = NetworkConfig(baseURL: "http://localhost:8080", timeout: 60)
 
-    @Variant(name: "Staging")
+    @Variant
     public static let staging = NetworkConfig(baseURL: "https://staging.example.com", timeout: 30)
 
-    @Variant(name: "Production")
+    @Variant
     public static let production = NetworkConfig(baseURL: "https://api.example.com", timeout: 10)
 
     @Variant(5, name: "Aggressive")
@@ -58,3 +58,22 @@ print("\n=== Banner.allVariants ===")
 for (name, _) in Banner.allVariants {
     print("  [\(name)]")
 }
+
+// MARK: - @VariantIterableAllCases + @Variant(at:)
+
+/// Payloads attached to a request.
+@VariantIterableAllCases
+public enum Payload: Sendable {
+    case empty
+
+    @Variant(at: Self.largeBody, name: "Large body")
+    case body(Data)
+
+    static let largeBody = Self.body(Data(repeating: 0xFF, count: 1024))
+}
+
+print("\n=== Payload.allVariants ===")
+for (name, _) in Payload.allVariants {
+    print("  [\(name)]")
+}
+print("allCases count: \(Payload.allCases.count)")

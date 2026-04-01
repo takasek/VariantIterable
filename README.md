@@ -247,15 +247,15 @@ enum Alert {
 }
 ```
 
-When a case's associated value is too complex to express as a macro argument, define a `static let` that holds the complete value and reference it with `@Variant(member:)`:
+When a case's associated value is too complex to express as a macro argument, define a `static let` that holds the complete value and reference it with `@Variant(at:)`:
 
 ```swift
 @VariantIterableAllCases
 enum Config {
-    @Variant(member: "largePayload", name: "Large payload")
+    @Variant(at: Self.largePayload, name: "Large payload")
     case withData(Data)
 
-    static let largePayload = Config.withData(Data(repeating: 0xFF, count: 1024))
+    static let largePayload = Self.withData(Data(repeating: 0xFF, count: 1024))
 }
 ```
 
@@ -317,15 +317,15 @@ case a, b               //    declaration (e.g. `case a, b`). Declare each case
                         //    on its own line.
 ```
 
-**`@Variant(member:)` outside `@VariantIterableAllCases`**
+**`@Variant(at:)` outside `@VariantIterableAllCases`**
 
 ```swift
 @VariantIterable
 enum Config {
-    @Variant(member: "payload", name: "Large")  // 🛑 @Variant(member:) is only supported
-    case withData(Data)                          //    with @VariantIterableAllCases. To include
-                                                 //    'withData' with @VariantIterable,
-    static let payload = Config.withData(...)    //    annotate the static let with @Variant directly.
+    @Variant(at: Self.payload, name: "Large")  // 🛑 @Variant(at:) is only supported
+    case withData(Data)                         //    with @VariantIterableAllCases. To include
+                                                //    'withData' with @VariantIterable,
+    static let payload = Config.withData(...)   //    annotate the static let with @Variant directly.
 }
 ```
 

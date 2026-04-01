@@ -462,7 +462,7 @@ final class VariantIterableMacroTests: XCTestCase {
             """
             @VariantIterable
             enum Alert {
-                @Variant(member: "logoutAction", name: "Logout")
+                @Variant(at: Self.logoutAction, name: "Logout")
                 case withAction(String, () -> Void)
 
                 static let logoutAction = Alert.withAction("Sign out?") {}
@@ -486,7 +486,7 @@ final class VariantIterableMacroTests: XCTestCase {
             """,
             diagnostics: [
                 DiagnosticSpec(
-                    message: "@Variant(member:) is only supported with @VariantIterableAllCases. To include 'withAction' with @VariantIterable, annotate the static let with @Variant directly.",
+                    message: "@Variant(at:) is only supported with @VariantIterableAllCases. To include 'withAction' with @VariantIterable, annotate the static let with @Variant directly.",
                     line: 4,
                     column: 10,
                     severity: .error
@@ -621,7 +621,7 @@ final class VariantIterableMacroTests: XCTestCase {
             @VariantIterableAllCases
             enum Config {
                 case simple
-                @Variant(member: "largePayload", name: "Large payload")
+                @Variant(at: Self.largePayload, name: "Large payload")
                 case withData(Data)
                 static let largePayload = Config.withData(Data())
             }
