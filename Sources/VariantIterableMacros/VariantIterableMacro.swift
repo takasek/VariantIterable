@@ -26,7 +26,8 @@ public struct VariantIterableMacro: MemberMacro, ExtensionMacro {
         conformingTo protocols: [TypeSyntax],
         in context: some MacroExpansionContext
     ) throws -> [DeclSyntax] {
-        let entries = collectEntries(from: declaration, collectAllCases: isAllCasesMode(node), in: context)
+        let isAllCases = isAllCasesMode(node)
+        let entries = collectEntries(from: declaration, collectAllCases: isAllCases, in: context)
         let access = accessModifier(of: declaration)
 
         let body = entries
@@ -41,7 +42,7 @@ public struct VariantIterableMacro: MemberMacro, ExtensionMacro {
         }
         """
 
-        guard isAllCasesMode(node) else { return [allVariants] }
+        guard isAllCases else { return [allVariants] }
 
         let allCases: DeclSyntax = """
         \(raw: access)static var allCases: [Self] { allVariants.map(\\.value) }
@@ -134,7 +135,7 @@ public struct VariantIterableMacro: MemberMacro, ExtensionMacro {
                     if params.isEmpty {
                         entries.append((name: name, callExpr: ".\(caseName)"))
                     } else {
-                        let labels = params.map { $0.firstName.flatMap { $0.text == "_" ? nil : $0.text } }
+                        let labels = params.map { labelText(from: $0.firstName) }
                         let avArgs = buildCallArgs(labels: labels, values: annotation.extraArgs)
                         entries.append((name: name, callExpr: ".\(caseName)(\(avArgs))"))
                     }
@@ -187,7 +188,7 @@ public struct VariantIterableMacro: MemberMacro, ExtensionMacro {
                     if params.isEmpty {
                         entries.append((name: name, callExpr: ".\(funcName)()"))
                     } else {
-                        let labels = params.map { $0.firstName.text == "_" ? nil : $0.firstName.text as String? }
+                        let labels = params.map { labelText(from: $0.firstName) }
                         let callArgs = buildCallArgs(labels: labels, values: annotation.extraArgs)
                         entries.append((name: name, callExpr: ".\(funcName)(\(callArgs))"))
                     }
@@ -206,6 +207,11 @@ public struct VariantIterableMacro: MemberMacro, ExtensionMacro {
 
     private static func isStatic(_ modifiers: DeclModifierListSyntax) -> Bool {
         modifiers.contains { $0.name.tokenKind == .keyword(.static) }
+    }
+
+    private static func labelText(from token: TokenSyntax?) -> String? {
+        guard let token, token.text != "_" else { return nil }
+        return token.text
     }
 
     private static func buildCallArgs(labels: [String?], values: [String]) -> String {
@@ -276,14 +282,13 @@ private extension AttributeListSyntax {
 // MARK: - String Literal Extraction
 
 private func extractStringLiteral(from expr: ExprSyntax?) -> String? {
-    guard let expr,
-          let strLit = expr.as(StringLiteralExprSyntax.self),
-          strLit.segments.allSatisfy({ $0.is(StringSegmentSyntax.self) })
-    else { return nil }
-    let value = strLit.segments
-        .compactMap { $0.as(StringSegmentSyntax.self)?.content.text }
-        .joined()
-    return value.isEmpty ? nil : value
+    guard let strLit = expr?.as(StringLiteralExprSyntax.self) else { return nil }
+    var result = ""
+    for segment in strLit.segments {
+        guard let text = segment.as(StringSegmentSyntax.self)?.content.text else { return nil }
+        result += text
+    }
+    return result.isEmpty ? nil : result
 }
 
 // MARK: - Diagnostics
@@ -307,16 +312,18 @@ private enum VariantDiagnostic: DiagnosticMessage {
         }
     }
 
+    private static let domain = "VariantIterable"
+
     var diagnosticID: MessageID {
         switch self {
         case .argCountMismatch:
-            return MessageID(domain: "VariantIterable", id: "argCountMismatch")
+            return MessageID(domain: Self.domain, id: "argCountMismatch")
         case .avCaseRequiresAnnotation:
-            return MessageID(domain: "VariantIterable", id: "avCaseRequiresAnnotation")
+            return MessageID(domain: Self.domain, id: "avCaseRequiresAnnotation")
         case .multiElementCaseWithAnnotation:
-            return MessageID(domain: "VariantIterable", id: "multiElementCaseWithAnnotation")
+            return MessageID(domain: Self.domain, id: "multiElementCaseWithAnnotation")
         case .unexpectedArgsOnStoredProperty:
-            return MessageID(domain: "VariantIterable", id: "unexpectedArgsOnStoredProperty")
+            return MessageID(domain: Self.domain, id: "unexpectedArgsOnStoredProperty")
         }
     }
 
