@@ -22,23 +22,23 @@ final class VariantIterableMacroTests: XCTestCase {
         assertMacroExpansion(
             """
             @VariantIterable
-            public struct Config {
-                @Variant(name: "Logout")
-                public static let logout: Self = .init()
+            public struct X {
+                @Variant(name: "Foo")
+                public static let foo: Self = .init()
             }
             """,
             expandedSource: """
-            public struct Config {
-                public static let logout: Self = .init()
+            public struct X {
+                public static let foo: Self = .init()
 
                 public static var allVariants: [(name: String, value: Self)] {
                     [
-                        (name: "Logout", value: .logout),
+                        (name: "Foo", value: .foo),
                     ]
                 }
             }
 
-            extension Config: VariantIterable {
+            extension X: VariantIterable {
             }
             """,
             macros: testMacros
@@ -53,25 +53,25 @@ final class VariantIterableMacroTests: XCTestCase {
         assertMacroExpansion(
             """
             @VariantIterable
-            struct Config {
-                @Variant(name: "A")
-                static let a: Self = .init()
-                static let b: Self = .init()
+            struct X {
+                @Variant(name: "Foo")
+                static let foo: Self = .init()
+                static let bar: Self = .init()
             }
             """,
             expandedSource: """
-            struct Config {
-                static let a: Self = .init()
-                static let b: Self = .init()
+            struct X {
+                static let foo: Self = .init()
+                static let bar: Self = .init()
 
                 static var allVariants: [(name: String, value: Self)] {
                     [
-                        (name: "A", value: .a),
+                        (name: "Foo", value: .foo),
                     ]
                 }
             }
 
-            extension Config: VariantIterable {
+            extension X: VariantIterable {
             }
             """,
             macros: testMacros
@@ -86,23 +86,23 @@ final class VariantIterableMacroTests: XCTestCase {
         assertMacroExpansion(
             """
             @VariantIterable
-            struct Config {
+            struct X {
                 @Variant
-                static let logout: Self = .init()
+                static let foo: Self = .init()
             }
             """,
             expandedSource: """
-            struct Config {
-                static let logout: Self = .init()
+            struct X {
+                static let foo: Self = .init()
 
                 static var allVariants: [(name: String, value: Self)] {
                     [
-                        (name: "logout", value: .logout),
+                        (name: "foo", value: .foo),
                     ]
                 }
             }
 
-            extension Config: VariantIterable {
+            extension X: VariantIterable {
             }
             """,
             macros: testMacros
@@ -119,23 +119,23 @@ final class VariantIterableMacroTests: XCTestCase {
         assertMacroExpansion(
             """
             @VariantIterable
-            struct Config {
-                @Variant(name: "Default")
-                static func makeDefault() -> Self { .init() }
+            struct X {
+                @Variant(name: "Foo")
+                static func make() -> Self { .init() }
             }
             """,
             expandedSource: """
-            struct Config {
-                static func makeDefault() -> Self { .init() }
+            struct X {
+                static func make() -> Self { .init() }
 
                 static var allVariants: [(name: String, value: Self)] {
                     [
-                        (name: "Default", value: .makeDefault()),
+                        (name: "Foo", value: .make()),
                     ]
                 }
             }
 
-            extension Config: VariantIterable {
+            extension X: VariantIterable {
             }
             """,
             macros: testMacros
@@ -150,23 +150,23 @@ final class VariantIterableMacroTests: XCTestCase {
         assertMacroExpansion(
             """
             @VariantIterable
-            struct Config {
-                @Variant(30, name: "Custom")
-                static func custom(timeout: Double) -> Self { .init() }
+            struct X {
+                @Variant(1, name: "Foo")
+                static func make(value: Int) -> Self { .init() }
             }
             """,
             expandedSource: """
-            struct Config {
-                static func custom(timeout: Double) -> Self { .init() }
+            struct X {
+                static func make(value: Int) -> Self { .init() }
 
                 static var allVariants: [(name: String, value: Self)] {
                     [
-                        (name: "Custom", value: .custom(timeout: 30)),
+                        (name: "Foo", value: .make(value: 1)),
                     ]
                 }
             }
 
-            extension Config: VariantIterable {
+            extension X: VariantIterable {
             }
             """,
             macros: testMacros
@@ -181,25 +181,25 @@ final class VariantIterableMacroTests: XCTestCase {
         assertMacroExpansion(
             """
             @VariantIterable
-            struct Config {
-                @Variant(5, name: "Aggressive")
-                @Variant(120, name: "Lenient")
-                static func custom(timeout: Double) -> Self { .init() }
+            struct X {
+                @Variant(1, name: "Foo")
+                @Variant(2, name: "Bar")
+                static func make(value: Int) -> Self { .init() }
             }
             """,
             expandedSource: """
-            struct Config {
-                static func custom(timeout: Double) -> Self { .init() }
+            struct X {
+                static func make(value: Int) -> Self { .init() }
 
                 static var allVariants: [(name: String, value: Self)] {
                     [
-                        (name: "Aggressive", value: .custom(timeout: 5)),
-                        (name: "Lenient", value: .custom(timeout: 120)),
+                        (name: "Foo", value: .make(value: 1)),
+                        (name: "Bar", value: .make(value: 2)),
                     ]
                 }
             }
 
-            extension Config: VariantIterable {
+            extension X: VariantIterable {
             }
             """,
             macros: testMacros
@@ -214,23 +214,23 @@ final class VariantIterableMacroTests: XCTestCase {
         assertMacroExpansion(
             """
             @VariantIterable
-            struct Config {
-                @Variant(42, name: "ID=42")
-                static func byID(_ id: Int) -> Self { .init() }
+            struct X {
+                @Variant(1, name: "Foo")
+                static func make(_ n: Int) -> Self { .init() }
             }
             """,
             expandedSource: """
-            struct Config {
-                static func byID(_ id: Int) -> Self { .init() }
+            struct X {
+                static func make(_ n: Int) -> Self { .init() }
 
                 static var allVariants: [(name: String, value: Self)] {
                     [
-                        (name: "ID=42", value: .byID(42)),
+                        (name: "Foo", value: .make(1)),
                     ]
                 }
             }
 
-            extension Config: VariantIterable {
+            extension X: VariantIterable {
             }
             """,
             macros: testMacros
@@ -247,14 +247,14 @@ final class VariantIterableMacroTests: XCTestCase {
         assertMacroExpansion(
             """
             @VariantIterable
-            struct Config {
-                @Variant(42, name: "bad")
-                static let logout: Self = .init()
+            struct X {
+                @Variant(1, name: "bad")
+                static let foo: Self = .init()
             }
             """,
             expandedSource: """
-            struct Config {
-                static let logout: Self = .init()
+            struct X {
+                static let foo: Self = .init()
 
                 static var allVariants: [(name: String, value: Self)] {
                     [
@@ -263,12 +263,12 @@ final class VariantIterableMacroTests: XCTestCase {
                 }
             }
 
-            extension Config: VariantIterable {
+            extension X: VariantIterable {
             }
             """,
             diagnostics: [
                 DiagnosticSpec(
-                    message: "@Variant: 'logout' is a stored property; positional arguments are not allowed.",
+                    message: "@Variant: 'foo' expects no arguments.",
                     line: 3,
                     column: 5,
                     severity: .error
@@ -286,14 +286,14 @@ final class VariantIterableMacroTests: XCTestCase {
         assertMacroExpansion(
             """
             @VariantIterable
-            struct Config {
-                @Variant(1, 2, name: "too many")
-                static func byID(_ id: Int) -> Self { .init() }
+            struct X {
+                @Variant(1, 2, name: "bad")
+                static func make(_ n: Int) -> Self { .init() }
             }
             """,
             expandedSource: """
-            struct Config {
-                static func byID(_ id: Int) -> Self { .init() }
+            struct X {
+                static func make(_ n: Int) -> Self { .init() }
 
                 static var allVariants: [(name: String, value: Self)] {
                     [
@@ -302,12 +302,12 @@ final class VariantIterableMacroTests: XCTestCase {
                 }
             }
 
-            extension Config: VariantIterable {
+            extension X: VariantIterable {
             }
             """,
             diagnostics: [
                 DiagnosticSpec(
-                    message: "@Variant: 'byID' expects 1 argument(s) but 2 were provided.",
+                    message: "@Variant: 'make' expects 1 argument(s) but 2 were provided.",
                     line: 3,
                     column: 5,
                     severity: .error
@@ -327,25 +327,25 @@ final class VariantIterableMacroTests: XCTestCase {
         assertMacroExpansion(
             """
             @VariantIterable
-            enum Alert {
-                @Variant(name: "Logout confirmation")
-                case logout
-                case notification
+            enum X {
+                @Variant(name: "Foo")
+                case foo
+                case bar
             }
             """,
             expandedSource: """
-            enum Alert {
-                case logout
-                case notification
+            enum X {
+                case foo
+                case bar
 
                 static var allVariants: [(name: String, value: Self)] {
                     [
-                        (name: "Logout confirmation", value: .logout),
+                        (name: "Foo", value: .foo),
                     ]
                 }
             }
 
-            extension Alert: VariantIterable {
+            extension X: VariantIterable {
             }
             """,
             macros: testMacros
@@ -360,25 +360,24 @@ final class VariantIterableMacroTests: XCTestCase {
         assertMacroExpansion(
             """
             @VariantIterable
-            enum Alert {
-                @Variant(name: "A")
-                case shown
-                case hidden
+            enum X {
+                case foo
+                case bar
             }
             """,
             expandedSource: """
-            enum Alert {
-                case shown
-                case hidden
+            enum X {
+                case foo
+                case bar
 
                 static var allVariants: [(name: String, value: Self)] {
                     [
-                        (name: "A", value: .shown),
+
                     ]
                 }
             }
 
-            extension Alert: VariantIterable {
+            extension X: VariantIterable {
             }
             """,
             macros: testMacros
@@ -395,25 +394,25 @@ final class VariantIterableMacroTests: XCTestCase {
         assertMacroExpansion(
             """
             @VariantIterable
-            enum Alert {
-                @Variant("Short message", name: "Short")
-                @Variant("A much longer error message for testing layout.", name: "Long")
-                case message(String)
+            enum X {
+                @Variant("foo", name: "Foo")
+                @Variant("bar", name: "Bar")
+                case baz(String)
             }
             """,
             expandedSource: """
-            enum Alert {
-                case message(String)
+            enum X {
+                case baz(String)
 
                 static var allVariants: [(name: String, value: Self)] {
                     [
-                        (name: "Short", value: .message("Short message")),
-                        (name: "Long", value: .message("A much longer error message for testing layout.")),
+                        (name: "Foo", value: .baz("foo")),
+                        (name: "Bar", value: .baz("bar")),
                     ]
                 }
             }
 
-            extension Alert: VariantIterable {
+            extension X: VariantIterable {
             }
             """,
             macros: testMacros
@@ -428,23 +427,23 @@ final class VariantIterableMacroTests: XCTestCase {
         assertMacroExpansion(
             """
             @VariantIterable
-            enum Alert {
-                @Variant(503, name: "Server Error")
-                case httpError(code: Int)
+            enum X {
+                @Variant(1, name: "Foo")
+                case foo(x: Int)
             }
             """,
             expandedSource: """
-            enum Alert {
-                case httpError(code: Int)
+            enum X {
+                case foo(x: Int)
 
                 static var allVariants: [(name: String, value: Self)] {
                     [
-                        (name: "Server Error", value: .httpError(code: 503)),
+                        (name: "Foo", value: .foo(x: 1)),
                     ]
                 }
             }
 
-            extension Alert: VariantIterable {
+            extension X: VariantIterable {
             }
             """,
             macros: testMacros
@@ -454,25 +453,56 @@ final class VariantIterableMacroTests: XCTestCase {
         #endif
     }
 
-    // MARK: - enum: member: overload
+    func testAVCaseWithMultipleArgs() throws {
+        #if canImport(VariantIterableMacros)
+        assertMacroExpansion(
+            """
+            @VariantIterable
+            enum X {
+                @Variant("foo", 1, name: "Foo")
+                case bar(x: String, y: Int)
+            }
+            """,
+            expandedSource: """
+            enum X {
+                case bar(x: String, y: Int)
+
+                static var allVariants: [(name: String, value: Self)] {
+                    [
+                        (name: "Foo", value: .bar(x: "foo", y: 1)),
+                    ]
+                }
+            }
+
+            extension X: VariantIterable {
+            }
+            """,
+            macros: testMacros
+        )
+        #else
+        throw XCTSkip("macros are only supported when running tests for the host platform")
+        #endif
+    }
+
+    // MARK: - enum: @Variant(at:) overload
 
     func testMemberRefOnVariantIterableProducesDiagnostic() throws {
         #if canImport(VariantIterableMacros)
         assertMacroExpansion(
             """
             @VariantIterable
-            enum Alert {
-                @Variant(at: Self.logoutAction, name: "Logout")
-                case withAction(String, () -> Void)
+            enum X {
+                @Variant(at: Self.bar, name: "Bar")
+                case foo(() -> Void)
 
-                static let logoutAction = Alert.withAction("Sign out?") {}
+                static let bar = X.foo({})
             }
             """,
             expandedSource: """
-            enum Alert {
-                case withAction(String, () -> Void)
+            enum X {
+                case foo(() -> Void)
 
-                static let logoutAction = Alert.withAction("Sign out?") {}
+                static let bar = X.foo({})
 
                 static var allVariants: [(name: String, value: Self)] {
                     [
@@ -481,12 +511,12 @@ final class VariantIterableMacroTests: XCTestCase {
                 }
             }
 
-            extension Alert: VariantIterable {
+            extension X: VariantIterable {
             }
             """,
             diagnostics: [
                 DiagnosticSpec(
-                    message: "@Variant(at:) is only supported with @VariantIterableAllCases. To include 'withAction' with @VariantIterable, annotate the static let with @Variant directly.",
+                    message: "@Variant(at:) is only supported with @VariantIterableAllCases. To include 'foo' with @VariantIterable, annotate the static let with @Variant directly.",
                     line: 4,
                     column: 10,
                     severity: .error
@@ -506,23 +536,23 @@ final class VariantIterableMacroTests: XCTestCase {
         assertMacroExpansion(
             """
             @VariantIterableAllCases
-            enum Status {
-                case active
-                case inactive
-                case pending
+            enum X {
+                case foo
+                case bar
+                case baz
             }
             """,
             expandedSource: """
-            enum Status {
-                case active
-                case inactive
-                case pending
+            enum X {
+                case foo
+                case bar
+                case baz
 
                 static var allVariants: [(name: String, value: Self)] {
                     [
-                        (name: "active", value: .active),
-                        (name: "inactive", value: .inactive),
-                        (name: "pending", value: .pending),
+                        (name: "foo", value: .foo),
+                        (name: "bar", value: .bar),
+                        (name: "baz", value: .baz),
                     ]
                 }
 
@@ -531,7 +561,7 @@ final class VariantIterableMacroTests: XCTestCase {
                 }
             }
 
-            extension Status: VariantIterable, CaseIterable {
+            extension X: VariantIterable, CaseIterable {
             }
             """,
             macros: testMacros
@@ -546,21 +576,21 @@ final class VariantIterableMacroTests: XCTestCase {
         assertMacroExpansion(
             """
             @VariantIterableAllCases
-            enum Status {
-                case active
-                @Variant(name: "Not active")
-                case inactive
+            enum X {
+                case foo
+                @Variant(name: "Bar!")
+                case bar
             }
             """,
             expandedSource: """
-            enum Status {
-                case active
-                case inactive
+            enum X {
+                case foo
+                case bar
 
                 static var allVariants: [(name: String, value: Self)] {
                     [
-                        (name: "active", value: .active),
-                        (name: "Not active", value: .inactive),
+                        (name: "foo", value: .foo),
+                        (name: "Bar!", value: .bar),
                     ]
                 }
 
@@ -569,7 +599,7 @@ final class VariantIterableMacroTests: XCTestCase {
                 }
             }
 
-            extension Status: VariantIterable, CaseIterable {
+            extension X: VariantIterable, CaseIterable {
             }
             """,
             macros: testMacros
@@ -584,18 +614,18 @@ final class VariantIterableMacroTests: XCTestCase {
         assertMacroExpansion(
             """
             @VariantIterableAllCases
-            enum Status {
-                case active, inactive
+            enum X {
+                case foo, bar
             }
             """,
             expandedSource: """
-            enum Status {
-                case active, inactive
+            enum X {
+                case foo, bar
 
                 static var allVariants: [(name: String, value: Self)] {
                     [
-                        (name: "active", value: .active),
-                        (name: "inactive", value: .inactive),
+                        (name: "foo", value: .foo),
+                        (name: "bar", value: .bar),
                     ]
                 }
 
@@ -604,7 +634,7 @@ final class VariantIterableMacroTests: XCTestCase {
                 }
             }
 
-            extension Status: VariantIterable, CaseIterable {
+            extension X: VariantIterable, CaseIterable {
             }
             """,
             macros: testMacros
@@ -619,23 +649,23 @@ final class VariantIterableMacroTests: XCTestCase {
         assertMacroExpansion(
             """
             @VariantIterableAllCases
-            enum Config {
-                case simple
-                @Variant(at: Self.largePayload, name: "Large payload")
-                case withData(Data)
-                static let largePayload = Config.withData(Data())
+            enum X {
+                case foo
+                @Variant(at: Self.baz, name: "Baz")
+                case bar(Data)
+                static let baz = X.bar(Data())
             }
             """,
             expandedSource: """
-            enum Config {
-                case simple
-                case withData(Data)
-                static let largePayload = Config.withData(Data())
+            enum X {
+                case foo
+                case bar(Data)
+                static let baz = X.bar(Data())
 
                 static var allVariants: [(name: String, value: Self)] {
                     [
-                        (name: "simple", value: .simple),
-                        (name: "Large payload", value: .largePayload),
+                        (name: "foo", value: .foo),
+                        (name: "Baz", value: .baz),
                     ]
                 }
 
@@ -644,7 +674,7 @@ final class VariantIterableMacroTests: XCTestCase {
                 }
             }
 
-            extension Config: VariantIterable, CaseIterable {
+            extension X: VariantIterable, CaseIterable {
             }
             """,
             macros: testMacros
@@ -659,19 +689,19 @@ final class VariantIterableMacroTests: XCTestCase {
         assertMacroExpansion(
             """
             @VariantIterableAllCases
-            enum Alert {
-                case success
-                case error(String)
+            enum X {
+                case foo
+                case bar(String)
             }
             """,
             expandedSource: """
-            enum Alert {
-                case success
-                case error(String)
+            enum X {
+                case foo
+                case bar(String)
 
                 static var allVariants: [(name: String, value: Self)] {
                     [
-                        (name: "success", value: .success),
+                        (name: "foo", value: .foo),
                     ]
                 }
 
@@ -680,12 +710,12 @@ final class VariantIterableMacroTests: XCTestCase {
                 }
             }
 
-            extension Alert: VariantIterable, CaseIterable {
+            extension X: VariantIterable, CaseIterable {
             }
             """,
             diagnostics: [
                 DiagnosticSpec(
-                    message: "@VariantIterableAllCases: 'error' has associated values and requires an explicit @Variant annotation.",
+                    message: "@VariantIterableAllCases: 'bar' has associated values and requires an explicit @Variant annotation.",
                     line: 4,
                     column: 10,
                     severity: .error
@@ -705,14 +735,14 @@ final class VariantIterableMacroTests: XCTestCase {
         assertMacroExpansion(
             """
             @VariantIterable
-            enum Alert {
+            enum X {
                 @Variant(name: "bad")
-                case a, b
+                case foo, bar
             }
             """,
             expandedSource: """
-            enum Alert {
-                case a, b
+            enum X {
+                case foo, bar
 
                 static var allVariants: [(name: String, value: Self)] {
                     [
@@ -721,7 +751,7 @@ final class VariantIterableMacroTests: XCTestCase {
                 }
             }
 
-            extension Alert: VariantIterable {
+            extension X: VariantIterable {
             }
             """,
             diagnostics: [
@@ -744,14 +774,14 @@ final class VariantIterableMacroTests: XCTestCase {
         assertMacroExpansion(
             """
             @VariantIterable
-            enum Alert {
-                @Variant("hello", "world", name: "too many")
-                case message(String)
+            enum X {
+                @Variant("foo", "bar", name: "bad")
+                case baz(String)
             }
             """,
             expandedSource: """
-            enum Alert {
-                case message(String)
+            enum X {
+                case baz(String)
 
                 static var allVariants: [(name: String, value: Self)] {
                     [
@@ -760,12 +790,12 @@ final class VariantIterableMacroTests: XCTestCase {
                 }
             }
 
-            extension Alert: VariantIterable {
+            extension X: VariantIterable {
             }
             """,
             diagnostics: [
                 DiagnosticSpec(
-                    message: "@Variant: 'message' expects 1 argument(s) but 2 were provided.",
+                    message: "@Variant: 'baz' expects 1 argument(s) but 2 were provided.",
                     line: 4,
                     column: 10,
                     severity: .error

@@ -321,7 +321,7 @@ private enum VariantDiagnostic: DiagnosticMessage {
         case .multiElementCaseWithAnnotation:
             return "@Variant cannot be applied to a multi-element case declaration (e.g. `case a, b`). Declare each case on its own line."
         case let .unexpectedArgsOnStoredProperty(name):
-            return "@Variant: '\(name)' is a stored property; positional arguments are not allowed."
+            return "@Variant: '\(name)' expects no arguments."
         }
     }
 

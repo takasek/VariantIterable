@@ -116,7 +116,7 @@ struct Config {
     @Variant                    // → name: "development"
     static let development: Self = .init()
 
-    @Variant(name: "Staging")   // → name: "Staging"
+    @Variant(name: "Staging 🏗")   // → name: "Staging 🏗"
     static let staging: Self = .init()
 }
 ```
@@ -163,10 +163,10 @@ static func makeDefault() -> Self { ... }
 ```swift
 @VariantIterable
 enum Banner {
-    @Variant(name: "Success")
+    @Variant
     case success
 
-    @Variant(name: "Warning")
+    @Variant
     case warning
 
     case dismissed   // no @Variant → not collected
@@ -291,8 +291,8 @@ The macro emits compile-time errors for misuse. Recoverable entries are skipped;
 **Positional arguments on a stored property**
 
 ```swift
-@Variant(42, name: "bad")       // 🛑 @Variant: 'logout' is a stored property;
-static let logout: Self = .init()//    positional arguments are not allowed.
+@Variant(42, name: "bad")           // 🛑 @Variant: 'production' expects no arguments.
+static let production: Self = .init()
 ```
 
 **Argument count mismatch on a function**
@@ -305,8 +305,8 @@ static func byID(_ id: Int) -> Self { ... } //    but 2 were provided.
 **Argument count mismatch on an enum case**
 
 ```swift
-@Variant("a", "b", name: "too many")  // 🛑 @Variant: 'message' expects 1 argument(s)
-case message(String)                  //    but 2 were provided.
+@Variant(name: "HTTPS")                    // 🛑 @Variant: 'connection' expects 2 argument(s)
+case connection(host: String, port: Int)   //    but 0 were provided.
 ```
 
 **Multi-element case declaration**
