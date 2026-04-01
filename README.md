@@ -370,11 +370,11 @@ Because all code generation happens at compile time and produces plain Swift sou
 
 ## Installation
 
-Add the package in `Package.swift` (replace `<your-org>` with the actual GitHub organization or user):
+Add the package in `Package.swift`:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/<your-org>/VariantIterable.git", from: "1.0.0"),
+    .package(url: "https://github.com/takasek/VariantIterable.git", from: "0.1.0"),
 ],
 targets: [
     .target(
