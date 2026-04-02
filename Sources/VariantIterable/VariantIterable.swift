@@ -5,7 +5,7 @@
 /// Adopt this protocol by applying `@VariantIterable` to your struct or enum.
 /// Use `@Variant` to register each representative instance.
 public protocol VariantIterable: Sendable {
-    static var allVariants: [(name: String, value: Self)] { get }
+  static var allVariants: [(name: String, value: Self)] { get }
 }
 
 // MARK: - @VariantIterable
@@ -14,10 +14,11 @@ public protocol VariantIterable: Sendable {
 /// members and enum cases annotated with `@Variant`.
 @attached(member, names: named(allVariants))
 @attached(extension, conformances: VariantIterable)
-public macro VariantIterable() = #externalMacro(
+public macro VariantIterable() =
+  #externalMacro(
     module: "VariantIterableMacros",
     type: "VariantIterableMacro"
-)
+  )
 
 /// Variant of `@VariantIterable` for enums whose cases have no associated values.
 ///
@@ -30,10 +31,11 @@ public macro VariantIterable() = #externalMacro(
 /// In addition to `VariantIterable`, this macro also adds `CaseIterable` conformance.
 @attached(member, names: named(allVariants), named(allCases))
 @attached(extension, conformances: VariantIterable, CaseIterable)
-public macro VariantIterableAllCases() = #externalMacro(
+public macro VariantIterableAllCases() =
+  #externalMacro(
     module: "VariantIterableMacros",
     type: "VariantIterableMacro"
-)
+  )
 
 // MARK: - @Variant
 
@@ -53,10 +55,11 @@ public macro VariantIterableAllCases() = #externalMacro(
 /// Apply multiple `@Variant` attributes to the same declaration to register
 /// multiple entries (useful for parameterised functions and AV cases).
 @attached(peer)
-public macro Variant<each A>(_ args: repeat each A, name: String? = nil) = #externalMacro(
+public macro Variant<each A>(_ args: repeat each A, name: String? = nil) =
+  #externalMacro(
     module: "VariantIterableMacros",
     type: "VariantPeerMacro"
-)
+  )
 
 /// Registers an enum case by referencing an existing static member that provides
 /// the representative instance. Use this when the associated value cannot be
@@ -70,7 +73,8 @@ public macro Variant<each A>(_ args: repeat each A, name: String? = nil) = #exte
 /// static let largePayload = Self.withData(Data(repeating: 0xFF, count: 1024))
 /// ```
 @attached(peer)
-public macro Variant<T>(at instance: T, name: String? = nil) = #externalMacro(
+public macro Variant<T>(at instance: T, name: String? = nil) =
+  #externalMacro(
     module: "VariantIterableMacros",
     type: "VariantPeerMacro"
-)
+  )
