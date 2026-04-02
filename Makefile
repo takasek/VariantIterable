@@ -4,7 +4,7 @@ test:
 	swift test
 
 format:
-	swift-format format --recursive --in-place Sources Tests
+	xcrun swift-format format --recursive --in-place Sources Tests
 
 lint-format:
-	swift-format lint --recursive Sources Tests
+	xcrun swift-format lint --recursive Sources Tests
