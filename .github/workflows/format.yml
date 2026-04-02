@@ -1,0 +1,20 @@
+name: Format
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  format:
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+      - name: Format
+        run: make format
+      - uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "Apply swift-format"
