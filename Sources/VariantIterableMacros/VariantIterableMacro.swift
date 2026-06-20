@@ -361,8 +361,11 @@ public struct VariantIterableMacro: MemberMacro, ExtensionMacro {
       switch mod.name.tokenKind {
       case .keyword(.public), .keyword(.open): return "public "
       case .keyword(.package): return "package "
-      case .keyword(.fileprivate): return "fileprivate "
-      case .keyword(.private): return "private "
+      // `private` and `fileprivate` types both need at least `fileprivate`
+      // witnesses: the generated `allVariants` satisfies the `VariantIterable`
+      // requirement from a separate extension, and a `private` member would not
+      // be visible there. For a top-level type the two are equivalent anyway.
+      case .keyword(.fileprivate), .keyword(.private): return "fileprivate "
       default: continue
       }
     }

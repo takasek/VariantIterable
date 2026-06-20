@@ -79,6 +79,37 @@ final class VariantIterableMacroTests: XCTestCase {
     #endif
   }
 
+  func testPrivateTypeGetsFileprivateMembers() throws {
+    #if canImport(VariantIterableMacros)
+      assertMacroExpansion(
+        """
+        @VariantIterable
+        private struct X {
+            @Variant
+            static let foo: Self = .init()
+        }
+        """,
+        expandedSource: """
+          private struct X {
+              static let foo: Self = .init()
+
+              fileprivate static var allVariants: [(name: String, value: Self)] {
+                  [
+                      (name: "foo", value: .foo),
+                  ]
+              }
+          }
+
+          extension X: VariantIterable {
+          }
+          """,
+        macros: testMacros
+      )
+    #else
+      throw XCTSkip("macros are only supported when running tests for the host platform")
+    #endif
+  }
+
   func testStaticLetWithoutAnnotationIsSkipped() throws {
     #if canImport(VariantIterableMacros)
       assertMacroExpansion(

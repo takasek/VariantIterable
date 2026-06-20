@@ -296,6 +296,8 @@ internal enum Banner { ... }
 // → static var allVariants: [(name: String, value: Self)] { ... }
 ```
 
+A `private` type gets `fileprivate` members. The generated property satisfies the `VariantIterable` requirement from a separate extension, so it must be visible at file scope; for a top-level type `private` and `fileprivate` are equivalent anyway.
+
 ---
 
 ## Diagnostics
