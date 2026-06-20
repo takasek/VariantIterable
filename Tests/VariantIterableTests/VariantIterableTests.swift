@@ -928,14 +928,16 @@ final class VariantIterableMacroTests: XCTestCase {
               "@Variant: 'name:' is required when multiple @Variant attributes are applied to the same declaration.",
             line: 3,
             column: 5,
-            severity: .warning
+            severity: .warning,
+            fixIts: [FixItSpec(message: "Add 'name:'")]
           ),
           DiagnosticSpec(
             message:
               "@Variant: 'name:' is required when multiple @Variant attributes are applied to the same declaration.",
             line: 4,
             column: 5,
-            severity: .warning
+            severity: .warning,
+            fixIts: [FixItSpec(message: "Add 'name:'")]
           ),
         ],
         macros: testMacros
@@ -972,8 +974,8 @@ final class VariantIterableMacroTests: XCTestCase {
         diagnostics: [
           DiagnosticSpec(
             message: "@Variant: 'baz' expects 1 argument(s) but 0 were provided.",
-            line: 4,
-            column: 10,
+            line: 3,
+            column: 5,
             severity: .error
           )
         ],
@@ -1011,11 +1013,165 @@ final class VariantIterableMacroTests: XCTestCase {
         diagnostics: [
           DiagnosticSpec(
             message: "@Variant: 'baz' expects 1 argument(s) but 2 were provided.",
-            line: 4,
-            column: 10,
+            line: 3,
+            column: 5,
             severity: .error
           )
         ],
+        macros: testMacros
+      )
+    #else
+      throw XCTSkip("macros are only supported when running tests for the host platform")
+    #endif
+  }
+
+  // MARK: - name resolution
+
+  func testEmptyNameIsUsedVerbatim() throws {
+    #if canImport(VariantIterableMacros)
+      assertMacroExpansion(
+        """
+        @VariantIterable
+        struct X {
+            @Variant(name: "")
+            static let foo: Self = .init()
+        }
+        """,
+        expandedSource: """
+          struct X {
+              static let foo: Self = .init()
+
+              static var allVariants: [(name: String, value: Self)] {
+                  [
+                      (name: "", value: .foo),
+                  ]
+              }
+          }
+
+          extension X: VariantIterable {
+          }
+          """,
+        macros: testMacros
+      )
+    #else
+      throw XCTSkip("macros are only supported when running tests for the host platform")
+    #endif
+  }
+
+  func testNonLiteralNameProducesDiagnostic() throws {
+    #if canImport(VariantIterableMacros)
+      assertMacroExpansion(
+        """
+        @VariantIterable
+        struct X {
+            @Variant(name: "id-\\(42)")
+            static let foo: Self = .init()
+        }
+        """,
+        expandedSource: """
+          struct X {
+              static let foo: Self = .init()
+
+              static var allVariants: [(name: String, value: Self)] {
+                  [
+                      (name: "foo", value: .foo),
+                  ]
+              }
+          }
+
+          extension X: VariantIterable {
+          }
+          """,
+        diagnostics: [
+          DiagnosticSpec(
+            message:
+              "@Variant: 'name:' must be a constant string literal. Interpolated or computed names cannot be used.",
+            line: 3,
+            column: 20,
+            severity: .error
+          )
+        ],
+        macros: testMacros
+      )
+    #else
+      throw XCTSkip("macros are only supported when running tests for the host platform")
+    #endif
+  }
+
+  // MARK: - duplicate names
+
+  func testDuplicateExplicitNamesProduceWarning() throws {
+    #if canImport(VariantIterableMacros)
+      assertMacroExpansion(
+        """
+        @VariantIterable
+        struct X {
+            @Variant(name: "Same")
+            static let foo: Self = .init()
+            @Variant(name: "Same")
+            static let bar: Self = .init()
+        }
+        """,
+        expandedSource: """
+          struct X {
+              static let foo: Self = .init()
+              static let bar: Self = .init()
+
+              static var allVariants: [(name: String, value: Self)] {
+                  [
+                      (name: "Same", value: .foo),
+                      (name: "Same", value: .bar),
+                  ]
+              }
+          }
+
+          extension X: VariantIterable {
+          }
+          """,
+        diagnostics: [
+          DiagnosticSpec(
+            message:
+              "@Variant: duplicate name 'Same'. allVariants will contain more than one entry with this name.",
+            line: 5,
+            column: 5,
+            severity: .warning
+          )
+        ],
+        macros: testMacros
+      )
+    #else
+      throw XCTSkip("macros are only supported when running tests for the host platform")
+    #endif
+  }
+
+  // MARK: - default arguments
+
+  func testStaticFuncWithDefaultArgumentMayOmitTrailingArg() throws {
+    #if canImport(VariantIterableMacros)
+      assertMacroExpansion(
+        """
+        @VariantIterable
+        struct X {
+            @Variant(80, name: "Custom port")
+            @Variant(name: "Default port")
+            static func make(port: Int = 443) -> Self { .init() }
+        }
+        """,
+        expandedSource: """
+          struct X {
+              static func make(port: Int = 443) -> Self { .init() }
+
+              static var allVariants: [(name: String, value: Self)] {
+                  [
+                      (name: "Custom port", value: .make(port: 80)),
+                      (name: "Default port", value: .make()),
+                  ]
+              }
+          }
+
+          extension X: VariantIterable {
+          }
+          """,
         macros: testMacros
       )
     #else
