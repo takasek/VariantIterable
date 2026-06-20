@@ -70,12 +70,22 @@ public struct VariantIterableMacro: MemberMacro, ExtensionMacro {
 
   // MARK: - Entry Collection
 
+  private struct CollectedEntry {
+    let name: String
+    let callExpr: String
+    /// Node to attach duplicate-name diagnostics to.
+    let node: Syntax
+    /// `true` when the name was provided explicitly via `name:` (as opposed to
+    /// being derived from the member or case name).
+    let explicitName: Bool
+  }
+
   private static func collectEntries(
     from declaration: some DeclGroupSyntax,
     collectAllCases: Bool,
     in context: some MacroExpansionContext
   ) -> [(name: String, callExpr: String)] {
-    var entries: [(name: String, callExpr: String)] = []
+    var entries: [CollectedEntry] = []
 
     for item in declaration.memberBlock.members {
       let decl = item.decl
@@ -89,7 +99,13 @@ public struct VariantIterableMacro: MemberMacro, ExtensionMacro {
           for element in caseDecl.elements {
             let params = element.parameterClause?.parameters ?? []
             if params.isEmpty {
-              entries.append((name: element.name.text, callExpr: ".\(element.name.text)"))
+              entries.append(
+                CollectedEntry(
+                  name: element.name.text,
+                  callExpr: ".\(element.name.text)",
+                  node: Syntax(element),
+                  explicitName: false
+                ))
             } else {
               context.diagnose(
                 Diagnostic(
@@ -117,14 +133,10 @@ public struct VariantIterableMacro: MemberMacro, ExtensionMacro {
         let params = element.parameterClause?.parameters ?? []
 
         for annotation in annotations {
-          if annotations.count > 1 && annotation.name == nil {
-            context.diagnose(
-              Diagnostic(
-                node: Syntax(annotation.node),
-                message: VariantDiagnostic.missingNameWithMultipleVariants
-              ))
+          if annotations.count > 1 && annotation.name.isAbsent {
+            context.diagnose(missingNameDiagnostic(for: annotation))
           }
-          let name = annotation.name ?? caseName
+          let resolved = resolveName(annotation, fallback: caseName, in: context)
 
           if let memberRef = annotation.memberRef {
             guard collectAllCases else {
@@ -135,14 +147,20 @@ public struct VariantIterableMacro: MemberMacro, ExtensionMacro {
                 ))
               continue
             }
-            entries.append((name: name, callExpr: ".\(memberRef)"))
+            entries.append(
+              CollectedEntry(
+                name: resolved.name,
+                callExpr: ".\(memberRef)",
+                node: Syntax(annotation.node),
+                explicitName: resolved.isExplicit
+              ))
             continue
           }
 
           guard annotation.extraArgs.count == params.count else {
             context.diagnose(
               Diagnostic(
-                node: Syntax(element),
+                node: Syntax(annotation.node),
                 message: VariantDiagnostic.argCountMismatch(
                   name: caseName,
                   expected: params.count,
@@ -152,13 +170,21 @@ public struct VariantIterableMacro: MemberMacro, ExtensionMacro {
             continue
           }
 
+          let callExpr: String
           if params.isEmpty {
-            entries.append((name: name, callExpr: ".\(caseName)"))
+            callExpr = ".\(caseName)"
           } else {
             let labels = params.map { labelText(from: $0.firstName) }
             let avArgs = buildCallArgs(labels: labels, values: annotation.extraArgs)
-            entries.append((name: name, callExpr: ".\(caseName)(\(avArgs))"))
+            callExpr = ".\(caseName)(\(avArgs))"
           }
+          entries.append(
+            CollectedEntry(
+              name: resolved.name,
+              callExpr: callExpr,
+              node: Syntax(annotation.node),
+              explicitName: resolved.isExplicit
+            ))
         }
 
         // 2. static let / var
@@ -175,20 +201,22 @@ public struct VariantIterableMacro: MemberMacro, ExtensionMacro {
           if !annotation.extraArgs.isEmpty {
             context.diagnose(
               Diagnostic(
-                node: Syntax(varDecl),
+                node: Syntax(annotation.node),
                 message: VariantDiagnostic.unexpectedArgsOnStoredProperty(name: memberName)
               ))
             continue
           }
-          if annotations.count > 1 && annotation.name == nil {
-            context.diagnose(
-              Diagnostic(
-                node: Syntax(annotation.node),
-                message: VariantDiagnostic.missingNameWithMultipleVariants
-              ))
+          if annotations.count > 1 && annotation.name.isAbsent {
+            context.diagnose(missingNameDiagnostic(for: annotation))
           }
-          let name = annotation.name ?? memberName
-          entries.append((name: name, callExpr: ".\(memberName)"))
+          let resolved = resolveName(annotation, fallback: memberName, in: context)
+          entries.append(
+            CollectedEntry(
+              name: resolved.name,
+              callExpr: ".\(memberName)",
+              node: Syntax(annotation.node),
+              explicitName: resolved.isExplicit
+            ))
         }
 
         // 3. static func
@@ -198,21 +226,22 @@ public struct VariantIterableMacro: MemberMacro, ExtensionMacro {
 
         let funcName = funcDecl.name.text
         let params = funcDecl.signature.parameterClause.parameters
+        // Parameters with a default value may be omitted from `@Variant`.
+        let requiredCount = params.filter { $0.defaultValue == nil }.count
 
         for annotation in annotations {
-          if annotations.count > 1 && annotation.name == nil {
+          if annotations.count > 1 && annotation.name.isAbsent {
+            context.diagnose(missingNameDiagnostic(for: annotation))
+          }
+          let resolved = resolveName(annotation, fallback: funcName, in: context)
+
+          guard
+            annotation.extraArgs.count >= requiredCount,
+            annotation.extraArgs.count <= params.count
+          else {
             context.diagnose(
               Diagnostic(
                 node: Syntax(annotation.node),
-                message: VariantDiagnostic.missingNameWithMultipleVariants
-              ))
-          }
-          let name = annotation.name ?? funcName
-
-          guard annotation.extraArgs.count == params.count else {
-            context.diagnose(
-              Diagnostic(
-                node: Syntax(funcDecl),
                 message: VariantDiagnostic.argCountMismatch(
                   name: funcName,
                   expected: params.count,
@@ -222,18 +251,40 @@ public struct VariantIterableMacro: MemberMacro, ExtensionMacro {
             continue
           }
 
-          if params.isEmpty {
-            entries.append((name: name, callExpr: ".\(funcName)()"))
+          let callExpr: String
+          if annotation.extraArgs.isEmpty {
+            callExpr = ".\(funcName)()"
           } else {
             let labels = params.map { labelText(from: $0.firstName) }
             let callArgs = buildCallArgs(labels: labels, values: annotation.extraArgs)
-            entries.append((name: name, callExpr: ".\(funcName)(\(callArgs))"))
+            callExpr = ".\(funcName)(\(callArgs))"
           }
+          entries.append(
+            CollectedEntry(
+              name: resolved.name,
+              callExpr: callExpr,
+              node: Syntax(annotation.node),
+              explicitName: resolved.isExplicit
+            ))
         }
       }
     }
 
-    return entries
+    // Warn when two explicitly named entries collide. Names derived from the
+    // member/case name are skipped — those collisions are already surfaced by
+    // `missingNameWithMultipleVariants`.
+    var seenExplicitNames = Set<String>()
+    for entry in entries where entry.explicitName {
+      if !seenExplicitNames.insert(entry.name).inserted {
+        context.diagnose(
+          Diagnostic(
+            node: entry.node,
+            message: VariantDiagnostic.duplicateName(name: entry.name)
+          ))
+      }
+    }
+
+    return entries.map { (name: $0.name, callExpr: $0.callExpr) }
   }
 
   // MARK: - Helpers
@@ -257,13 +308,64 @@ public struct VariantIterableMacro: MemberMacro, ExtensionMacro {
       .joined(separator: ", ")
   }
 
+  /// Resolves the display name for an annotation, emitting a diagnostic when a
+  /// `name:` argument is present but not a constant string literal.
+  private static func resolveName(
+    _ annotation: VariantAnnotation,
+    fallback: String,
+    in context: some MacroExpansionContext
+  ) -> (name: String, isExplicit: Bool) {
+    switch annotation.name {
+    case .absent:
+      return (fallback, false)
+    case .literal(let value):
+      return (value, true)
+    case .nonLiteral(let expr):
+      context.diagnose(
+        Diagnostic(node: Syntax(expr), message: VariantDiagnostic.nonLiteralName))
+      return (fallback, false)
+    }
+  }
+
+  /// Builds the `missingNameWithMultipleVariants` warning along with a fix-it
+  /// that inserts a `name:` placeholder.
+  private static func missingNameDiagnostic(for annotation: VariantAnnotation) -> Diagnostic {
+    let placeholder = #"name: "<#name#>""#
+    let newAttrText: String
+    if case .argumentList(let argList)? = annotation.node.arguments, !argList.isEmpty {
+      let existing = argList.map { $0.trimmedDescription }.joined(separator: ", ")
+      newAttrText = "@Variant(\(existing), \(placeholder))"
+    } else {
+      newAttrText = "@Variant(\(placeholder))"
+    }
+    let parsed: AttributeSyntax = "\(raw: newAttrText)"
+    let newAttr =
+      parsed
+      .with(\.leadingTrivia, annotation.node.leadingTrivia)
+      .with(\.trailingTrivia, annotation.node.trailingTrivia)
+
+    return Diagnostic(
+      node: Syntax(annotation.node),
+      message: VariantDiagnostic.missingNameWithMultipleVariants,
+      fixIts: [
+        FixIt(
+          message: VariantFixIt.addName,
+          changes: [.replace(oldNode: Syntax(annotation.node), newNode: Syntax(newAttr))]
+        )
+      ]
+    )
+  }
+
   private static func accessModifier(of declaration: some DeclGroupSyntax) -> String {
     for mod in declaration.modifiers {
       switch mod.name.tokenKind {
       case .keyword(.public), .keyword(.open): return "public "
       case .keyword(.package): return "package "
-      case .keyword(.fileprivate): return "fileprivate "
-      case .keyword(.private): return "private "
+      // `private` and `fileprivate` types both need at least `fileprivate`
+      // witnesses: the generated `allVariants` satisfies the `VariantIterable`
+      // requirement from a separate extension, and a `private` member would not
+      // be visible there. For a top-level type the two are equivalent anyway.
+      case .keyword(.fileprivate), .keyword(.private): return "fileprivate "
       default: continue
       }
     }
@@ -273,9 +375,25 @@ public struct VariantIterableMacro: MemberMacro, ExtensionMacro {
 
 // MARK: - VariantAnnotation
 
+/// The resolved state of a `name:` argument.
+private enum VariantName {
+  /// No `name:` argument was provided.
+  case absent
+  /// A constant string literal (possibly empty).
+  case literal(String)
+  /// A `name:` argument that is not a constant string literal (e.g. an
+  /// interpolated string or a reference to another value).
+  case nonLiteral(ExprSyntax)
+
+  var isAbsent: Bool {
+    if case .absent = self { return true }
+    return false
+  }
+}
+
 private struct VariantAnnotation {
   let node: AttributeSyntax
-  let name: String?
+  let name: VariantName
   /// Non-nil when `@Variant(at:)` is used.
   let memberRef: String?
   /// Positional argument expressions (source text) for `@Variant(arg1, arg2, ...)`.
@@ -293,16 +411,16 @@ extension AttributeListSyntax {
         case .argumentList(let argList) = args
       else {
         // @Variant with no parentheses
-        return VariantAnnotation(node: attr, name: nil, memberRef: nil, extraArgs: [])
+        return VariantAnnotation(node: attr, name: .absent, memberRef: nil, extraArgs: [])
       }
 
-      var name: String? = nil
+      var name: VariantName = .absent
       var memberRef: String? = nil
       var extraArgs: [String] = []
 
       for arg in argList {
         switch arg.label?.text {
-        case "name": name = extractStringLiteral(from: arg.expression)
+        case "name": name = parseVariantName(arg.expression)
         case "at":
           if let memberAccess = arg.expression.as(MemberAccessExprSyntax.self) {
             memberRef = memberAccess.declName.baseName.text
@@ -320,16 +438,24 @@ extension AttributeListSyntax {
   }
 }
 
-// MARK: - String Literal Extraction
+// MARK: - Name Parsing
 
-private func extractStringLiteral(from expr: ExprSyntax?) -> String? {
-  guard let strLit = expr?.as(StringLiteralExprSyntax.self) else { return nil }
+/// Parses a `name:` argument expression into a `VariantName`.
+///
+/// Returns `.literal` only for constant string literals (empty strings
+/// included). Interpolated strings, other expressions, and explicit `nil` that
+/// cannot be embedded as a compile-time name are reported back to the caller.
+private func parseVariantName(_ expr: ExprSyntax) -> VariantName {
+  if expr.is(NilLiteralExprSyntax.self) { return .absent }
+  guard let strLit = expr.as(StringLiteralExprSyntax.self) else { return .nonLiteral(expr) }
   var result = ""
   for segment in strLit.segments {
-    guard let text = segment.as(StringSegmentSyntax.self)?.content.text else { return nil }
+    guard let text = segment.as(StringSegmentSyntax.self)?.content.text else {
+      return .nonLiteral(expr)
+    }
     result += text
   }
-  return result.isEmpty ? nil : result
+  return .literal(result)
 }
 
 // MARK: - Diagnostics
@@ -337,9 +463,11 @@ private func extractStringLiteral(from expr: ExprSyntax?) -> String? {
 private enum VariantDiagnostic: DiagnosticMessage {
   case argCountMismatch(name: String, expected: Int, actual: Int)
   case avCaseRequiresAnnotation(name: String)
+  case duplicateName(name: String)
   case memberRefRequiresAllCases(name: String)
   case multiElementCaseWithAnnotation
   case missingNameWithMultipleVariants
+  case nonLiteralName
   case unexpectedArgsOnStoredProperty(name: String)
 
   var message: String {
@@ -349,6 +477,9 @@ private enum VariantDiagnostic: DiagnosticMessage {
     case .avCaseRequiresAnnotation(let name):
       return
         "@VariantIterableAllCases: '\(name)' has associated values and requires an explicit @Variant annotation."
+    case .duplicateName(let name):
+      return
+        "@Variant: duplicate name '\(name)'. allVariants will contain more than one entry with this name."
     case .memberRefRequiresAllCases(let name):
       return
         "@Variant(at:) is only supported with @VariantIterableAllCases. To include '\(name)' with @VariantIterable, annotate the static let with @Variant directly."
@@ -358,6 +489,9 @@ private enum VariantDiagnostic: DiagnosticMessage {
     case .missingNameWithMultipleVariants:
       return
         "@Variant: 'name:' is required when multiple @Variant attributes are applied to the same declaration."
+    case .nonLiteralName:
+      return
+        "@Variant: 'name:' must be a constant string literal. Interpolated or computed names cannot be used."
     case .unexpectedArgsOnStoredProperty(let name):
       return "@Variant: '\(name)' expects no arguments."
     }
@@ -371,12 +505,16 @@ private enum VariantDiagnostic: DiagnosticMessage {
       return MessageID(domain: Self.domain, id: "argCountMismatch")
     case .avCaseRequiresAnnotation:
       return MessageID(domain: Self.domain, id: "avCaseRequiresAnnotation")
+    case .duplicateName:
+      return MessageID(domain: Self.domain, id: "duplicateName")
     case .memberRefRequiresAllCases:
       return MessageID(domain: Self.domain, id: "memberRefRequiresAllCases")
     case .multiElementCaseWithAnnotation:
       return MessageID(domain: Self.domain, id: "multiElementCaseWithAnnotation")
     case .missingNameWithMultipleVariants:
       return MessageID(domain: Self.domain, id: "missingNameWithMultipleVariants")
+    case .nonLiteralName:
+      return MessageID(domain: Self.domain, id: "nonLiteralName")
     case .unexpectedArgsOnStoredProperty:
       return MessageID(domain: Self.domain, id: "unexpectedArgsOnStoredProperty")
     }
@@ -384,8 +522,24 @@ private enum VariantDiagnostic: DiagnosticMessage {
 
   var severity: DiagnosticSeverity {
     switch self {
-    case .missingNameWithMultipleVariants: return .warning
+    case .missingNameWithMultipleVariants, .duplicateName: return .warning
     default: return .error
+    }
+  }
+}
+
+private enum VariantFixIt: FixItMessage {
+  case addName
+
+  var message: String {
+    switch self {
+    case .addName: return "Add 'name:'"
+    }
+  }
+
+  var fixItID: MessageID {
+    switch self {
+    case .addName: return MessageID(domain: "VariantIterable", id: "addName")
     }
   }
 }

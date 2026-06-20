@@ -162,6 +162,16 @@ static func makeDefault() -> Self { ... }
 // → .makeDefault()
 ```
 
+Parameters with default values may be omitted. Pass between the number of required parameters and the full parameter count; trailing defaulted parameters you leave out fall back to their defaults:
+
+```swift
+@Variant(80, name: "Custom port")
+@Variant(name: "Default port")
+static func make(port: Int = 443) -> Self { ... }
+// → .make(port: 80)
+// → .make()
+```
+
 ### enum — cases without associated values
 
 ```swift
@@ -286,6 +296,8 @@ internal enum Banner { ... }
 // → static var allVariants: [(name: String, value: Self)] { ... }
 ```
 
+A `private` type gets `fileprivate` members. The generated property satisfies the `VariantIterable` requirement from a separate extension, so it must be visible at file scope; for a top-level type `private` and `fileprivate` are equivalent anyway.
+
 ---
 
 ## Diagnostics
@@ -329,6 +341,28 @@ When multiple `@Variant` attributes are applied to the same declaration, omittin
 @Variant(5)    // ⚠️ @Variant: 'name:' is required when multiple @Variant
 @Variant(120)  // ⚠️     attributes are applied to the same declaration.
 static func custom(timeout: TimeInterval) -> Self { ... }
+```
+
+**Non-constant `name:`**
+
+`name:` is embedded into the generated source at compile time, so it must be a constant string literal. Interpolated or computed values are rejected:
+
+```swift
+@Variant(name: "id-\(id)")   // 🛑 @Variant: 'name:' must be a constant string
+static let foo: Self = .init() //   literal. Interpolated or computed names cannot be used.
+```
+
+An empty string (`name: ""`) is allowed and used verbatim.
+
+**Duplicate names**
+
+When two entries are given the same explicit `name:`, `allVariants` will contain more than one entry under that name. The macro emits a warning on the colliding entry:
+
+```swift
+@Variant(name: "Same")
+static let foo: Self = .init()
+@Variant(name: "Same")   // ⚠️ @Variant: duplicate name 'Same'. allVariants will
+static let bar: Self = .init() //   contain more than one entry with this name.
 ```
 
 **`@Variant(at:)` outside `@VariantIterableAllCases`**

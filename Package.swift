@@ -43,6 +43,7 @@ let package = Package(
         .testTarget(
             name: "VariantIterableTests",
             dependencies: [
+                "VariantIterable",
                 "VariantIterableMacros",
                 .product(name: "SwiftSyntaxMacrosTestSupport", package: "swift-syntax"),
             ]
