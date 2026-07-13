@@ -1,6 +1,5 @@
-import XCTest
-
 import VariantIterable
+import XCTest
 
 // These tests exercise the *generated* code at runtime — they compile the macro
 // expansion and assert on the resulting `allVariants` / `allCases`. This catches
