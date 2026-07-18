@@ -1,5 +1,6 @@
 # VariantIterable
 
+[![CI](https://github.com/takasek/VariantIterable/actions/workflows/ci.yml/badge.svg)](https://github.com/takasek/VariantIterable/actions/workflows/ci.yml)
 [![Swift 6.2+](https://img.shields.io/badge/Swift-6.2%2B-orange.svg)](https://swift.org)
 [![Platforms](https://img.shields.io/badge/Platforms-iOS%2013%20%7C%20macOS%2010.15%20%7C%20tvOS%2013%20%7C%20watchOS%206-blue.svg)](https://swift.org/package-manager)
 [![SPM Compatible](https://img.shields.io/badge/SPM-compatible-brightgreen.svg)](https://swift.org/package-manager)
@@ -7,15 +8,40 @@
 
 **`CaseIterable` for structs and enums with associated values.**
 
-Attach `@VariantIterable` to a type and `@Variant` to its static members or enum cases. The macro generates a static `allVariants` property — a named list of representative instances — with no runtime overhead.
+`CaseIterable` stops working the moment your enum gains an associated value — and it never worked for structs at all. `VariantIterable` picks up where it leaves off:
+
+```swift
+@VariantIterable
+enum Banner {
+    @Variant("Oops, something went wrong.", name: "Short error")
+    @Variant("A network error occurred. Please check your connection.", name: "Long error")
+    case error(String)
+
+    @Variant(503, name: "Server Error")
+    case httpError(code: Int)
+}
+
+Banner.allVariants
+// [(name: "Short error",  value: .error("Oops, something went wrong.")),
+//  (name: "Long error",   value: .error("A network error occurred...")),
+//  (name: "Server Error", value: .httpError(code: 503))]
+```
+
+One annotation, and every type — struct or enum — gets a static `allVariants` property: a **named list of representative instances**, generated at compile time with zero runtime overhead.
+
+|  | `CaseIterable` | `VariantIterable` |
+|---|:---:|:---:|
+| Simple enums | ✅ | ✅ |
+| Enums with associated values | ❌ | ✅ |
+| Structs | ❌ | ✅ |
+| Display names for each entry | ❌ | ✅ |
+| Multiple entries per case | ❌ | ✅ |
 
 ---
 
-## Motivation
+## Why?
 
-Swift's `CaseIterable` is convenient for simple enums, but it breaks down in two common situations:
-
-**Structs** have no cases to iterate at all. If you want a fixed set of representative instances — say, for a debug menu or an Xcode preview — you end up writing the list by hand and keeping it in sync with your static members.
+The pattern shows up everywhere once you notice it: you have a type, a handful of *interesting* instances of it, and somewhere else a hand-written list of those instances that silently drifts out of sync.
 
 ```swift
 struct NetworkConfig {
@@ -35,9 +61,44 @@ let allConfigs: [(String, NetworkConfig)] = [
 ]
 ```
 
-**Enums with associated values** cannot conform to `CaseIterable` at all. Each case needs concrete values to be instantiated, and there is no standard way to express that.
+SwiftUI previews, debug menus, snapshot tests, demo catalogs — they all need that list. `VariantIterable` generates it for you, right next to the definitions it mirrors.
 
-`VariantIterable` solves both problems with a single annotation.
+---
+
+## Use Cases
+
+### SwiftUI Previews — render every state at once
+
+```swift
+#Preview {
+    VStack(spacing: 12) {
+        ForEach(Banner.allVariants, id: \.name) { variant in
+            BannerView(banner: variant.value)
+        }
+    }
+}
+```
+
+Add a case, and the preview updates itself. No more previews that only show the happy path.
+
+### Snapshot tests — one test, every variant
+
+```swift
+@Test(arguments: Banner.allVariants)
+func snapshot(variant: (name: String, value: Banner)) {
+    assertSnapshot(of: BannerView(banner: variant.value), as: .image, named: variant.name)
+}
+```
+
+The `name` doubles as the snapshot filename — descriptive, stable, and defined next to the value itself.
+
+### Debug menus — switch environments without hardcoding
+
+```swift
+List(NetworkConfig.allVariants, id: \.name) { variant in
+    Button(variant.name) { apply(variant.value) }
+}
+```
 
 ---
 
@@ -101,6 +162,28 @@ extension NetworkConfig: VariantIterable {}
 ```
 
 </details>
+
+---
+
+## Installation
+
+Add the package in `Package.swift`:
+
+```swift
+dependencies: [
+    .package(url: "https://github.com/takasek/VariantIterable.git", from: "0.1.0"),
+],
+targets: [
+    .target(
+        name: "MyTarget",
+        dependencies: [
+            .product(name: "VariantIterable", package: "VariantIterable"),
+        ]
+    ),
+]
+```
+
+Or use **File › Add Package Dependencies…** in Xcode and paste the repository URL.
 
 ---
 
@@ -302,7 +385,10 @@ A `private` type gets `fileprivate` members. The generated property satisfies th
 
 ## Diagnostics
 
-The macro emits compile-time errors and warnings for misuse. Recoverable entries are skipped; the rest of `allVariants` is still generated.
+The macro emits compile-time errors and warnings for misuse — mistakes are caught when you build, not when you run. Recoverable entries are skipped; the rest of `allVariants` is still generated.
+
+<details>
+<summary>See all diagnostics</summary>
 
 **Positional arguments on a stored property**
 
@@ -377,6 +463,8 @@ enum Config {
 }
 ```
 
+</details>
+
 ---
 
 ## How It Works
@@ -402,31 +490,9 @@ Because all code generation happens at compile time and produces plain Swift sou
 
 ---
 
-## Installation
+## Contributing
 
-Add the package in `Package.swift`:
-
-```swift
-dependencies: [
-    .package(url: "https://github.com/takasek/VariantIterable.git", from: "0.1.0"),
-],
-targets: [
-    .target(
-        name: "MyTarget",
-        dependencies: [
-            .product(name: "VariantIterable", package: "VariantIterable"),
-        ]
-    ),
-]
-```
-
-Or use **File › Add Package Dependencies…** in Xcode and paste the repository URL.
-
----
-
-## Development
-
-Clone the repository and run the test suite:
+Issues and pull requests are welcome! Clone the repository and run the test suite:
 
 ```bash
 swift test
@@ -438,6 +504,8 @@ The project is structured as a standard Swift package:
 - `Sources/VariantIterableMacros` — macro implementation (swift-syntax)
 - `Sources/VariantIterableClient` — executable playground for manual testing
 - `Tests/VariantIterableTests` — macro expansion tests via `assertMacroExpansion`
+
+If VariantIterable saves you some boilerplate, consider giving it a ⭐️ — it helps others discover the library.
 
 ---
 
